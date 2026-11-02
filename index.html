@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Aplikasi akuntansi rumah tangga sederhana — kelola keuangan keluarga dengan mudah." />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+  <title>Keuangan Keluarga — Akuntansi Rumah Tangga</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- sql.js (SQLite WASM) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    if (!window.XLSX) {
+      document.write('<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"><\/script>');
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    /* Smooth view transitions */
+    .view-section {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .view-section.hidden {
+      display: none !important;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* Bottom nav safe area */
+    .bottom-nav {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* Progress bar animation */
+    .progress-bar-fill {
+      transition: width 0.6s ease;
+    }
+
+    /* Splash fade */
+    #splash-screen {
+      transition: opacity 0.4s ease;
+    }
+    #splash-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Card hover */
+    .card-hover {
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+    }
+    .card-hover:hover {
+      box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+
+    /* FAB pulse */
+    @keyframes fab-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(79,70,229,0); }
+    }
+    .fab-button:hover {
+      animation: fab-pulse 1.5s infinite;
+    }
+
+    /* Touch-friendly inputs & selects */
+    input, select, textarea, button {
+      font-size: 16px; /* Prevent iOS zoom */
+    }
+
+    /* Enhanced Mobile-Friendly Dropdowns */
+    select {
+      font-size: 16px !important;
+      min-height: 48px !important;
+      line-height: 1.5 !important;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+      background-position: right 0.85rem center !important;
+      background-repeat: no-repeat !important;
+      background-size: 1.25em 1.25em !important;
+      padding-right: 2.75rem !important;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+    }
+
+    /* Active nav indicator */
+    .nav-item.active .nav-icon {
+      color: #4f46e5;
+    }
+    .nav-item.active .nav-label {
+      color: #4f46e5;
+      font-weight: 600;
+    }
+    .nav-item.active .nav-indicator {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+
+    /* Sidebar active */
+    .sidebar-item.active {
+      background-color: #eef2ff;
+      color: #4f46e5;
+      font-weight: 600;
+      border-right: 3px solid #4f46e5;
+    }
+
+    /* Keypad & Lock Screen Shake Animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake {
+      animation: shake 0.35s ease-in-out;
+    }
+
+    .keypad-btn {
+      touch-action: manipulation;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .keypad-btn:active {
+      transform: scale(0.92);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-50 font-sans text-slate-800 antialiased">
+
+  <!-- ============================================= -->
+  <!-- SPLASH / LOADING SCREEN                       -->
+  <!-- ============================================= -->
+  <div id="splash-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-indigo-600">
+    <div class="flex flex-col items-center gap-4">
+      <div class="text-5xl">💰</div>
+      <h1 class="text-2xl font-bold text-white">Keuangan Keluarga</h1>
+      <p class="text-indigo-200 text-sm">Memuat aplikasi...</p>
+      <div class="mt-4 flex items-center gap-2">
+        <div class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:0ms"></div>
+        <div class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:150ms"></div>
+        <div class="h-2 w-2 rounded-full bg-white animate-bounce" style="animation-delay:300ms"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- LOCK / LOGIN SCREEN (PIN Security)            -->
+  <!-- ============================================= -->
+  <div id="lock-screen" class="fixed inset-0 z-[90] hidden flex flex-col items-center justify-between bg-slate-900 text-white p-6 select-none overflow-y-auto">
+    <!-- Header / Brand -->
+    <div class="flex flex-col items-center mt-4 lg:mt-8">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/20 mb-3">
+        🔒
+      </div>
+      <h2 class="text-xl font-bold tracking-tight text-white">Keamanan Aplikasi</h2>
+      <p class="text-xs text-slate-400 mt-1">Masukkan PIN untuk membuka data keuangan</p>
+    </div>
+
+    <!-- PIN Dots Display & Keypad -->
+    <div class="w-full max-w-xs flex flex-col items-center my-auto py-2">
+      <!-- Dots indicator -->
+      <div id="lock-dots" class="flex items-center justify-center gap-4 py-3">
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="0"></div>
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="1"></div>
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="2"></div>
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="3"></div>
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="4"></div>
+        <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-200" data-dot="5"></div>
+      </div>
+
+      <!-- Error / Status Message -->
+      <p id="lock-error-msg" class="text-xs font-semibold text-rose-400 min-h-[20px] text-center mt-1"></p>
+
+      <!-- Keypad (Touch & Click friendly) -->
+      <div class="grid grid-cols-3 gap-3 w-full max-w-[280px] mt-4">
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="1">1</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="2">2</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="3">3</button>
+
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="4">4</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="5">5</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="6">6</button>
+
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="7">7</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="8">8</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="9">9</button>
+
+        <button type="button" class="keypad-btn h-14 rounded-2xl text-slate-400 hover:text-white flex items-center justify-center text-xs font-semibold uppercase tracking-wider" data-key="clear">Hapus</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-indigo-600 border border-slate-700/60 text-xl font-semibold flex items-center justify-center shadow-sm" data-key="0">0</button>
+        <button type="button" class="keypad-btn h-14 rounded-2xl text-slate-400 hover:text-rose-400 flex items-center justify-center" data-key="backspace">
+          <i data-lucide="delete" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <p class="text-[11px] text-slate-500 mt-4 text-center">Bisa menggunakan tombol keyboard fisik</p>
+    </div>
+
+    <!-- Footer Security Note -->
+    <div class="mb-2 text-center">
+      <p class="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-400"></i>
+        Enkripsi SHA-256 Web Crypto · Data 100% Privat &amp; Offline
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- APP SHELL                                     -->
+  <!-- ============================================= -->
+  <div id="app-shell" class="flex h-full">
+
+    <!-- =========================================== -->
+    <!-- SIDEBAR (Desktop only, lg+)                 -->
+    <!-- =========================================== -->
+    <aside id="sidebar" class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-slate-200 z-40">
+      <!-- Sidebar Header -->
+      <div class="flex items-center gap-3 px-6 py-5 border-b border-slate-100">
+        <span class="text-3xl">💰</span>
+        <div>
+          <h1 class="text-lg font-bold text-slate-800 leading-tight">Keuangan Keluarga</h1>
+          <p class="text-xs text-slate-400">Akuntansi Rumah Tangga</p>
+        </div>
+      </div>
+
+      <!-- Sidebar Nav -->
+      <nav class="flex-1 px-3 py-4 space-y-1">
+        <button data-nav="dashboard" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span>Dashboard</span>
+        </button>
+        <button data-nav="transaksi" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+          <i data-lucide="receipt-text" class="w-5 h-5"></i>
+          <span>Transaksi</span>
+        </button>
+        <button data-nav="laporan" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+          <span>Laporan</span>
+        </button>
+        <button data-nav="pengaturan" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+          <span>Pengaturan</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Lock & Footer -->
+      <div class="px-4 py-3 border-t border-slate-100 space-y-2">
+        <button id="btn-sidebar-lock" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors">
+          <i data-lucide="lock" class="w-4 h-4 text-slate-400"></i>
+          <span>Kunci Aplikasi</span>
+        </button>
+        <p class="text-[11px] text-slate-400 text-center">v1.0 — Data tersimpan lokal</p>
+      </div>
+    </aside>
+
+    <!-- =========================================== -->
+    <!-- MAIN CONTENT AREA                           -->
+    <!-- =========================================== -->
+    <main class="flex-1 lg:ml-64 pb-20 lg:pb-0 min-h-full">
+
+      <!-- Mobile Header -->
+      <header class="lg:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">💰</span>
+            <div>
+              <h1 class="text-base font-bold text-slate-800 leading-tight">Keuangan Keluarga</h1>
+              <p class="text-[10px] text-slate-400 -mt-0.5">Akuntansi Rumah Tangga</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="header-saldo" class="text-right">
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Total Saldo</p>
+              <p class="text-sm font-bold text-indigo-600" id="header-saldo-value">Rp 0</p>
+            </div>
+            <button id="btn-header-lock" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors" title="Kunci Aplikasi">
+              <i data-lucide="lock" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- ========================================= -->
+      <!-- VIEW: DASHBOARD                           -->
+      <!-- ========================================= -->
+      <section id="view-dashboard" class="view-section p-4 lg:p-8 space-y-6">
+        <!-- Saldo Card -->
+        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-lg shadow-indigo-200">
+          <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider">Total Saldo Semua Akun</p>
+          <p class="text-3xl font-bold mt-1" id="dashboard-total-saldo">Rp 0</p>
+          <div class="flex items-center gap-4 mt-4">
+            <div class="flex-1 bg-white/10 rounded-lg p-3">
+              <div class="flex items-center gap-1.5 text-emerald-200 text-xs font-medium">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                <span>Pemasukan</span>
+              </div>
+              <p class="text-lg font-bold mt-0.5" id="dashboard-income">Rp 0</p>
+              <p class="text-[10px] text-indigo-200">Bulan ini</p>
+            </div>
+            <div class="flex-1 bg-white/10 rounded-lg p-3">
+              <div class="flex items-center gap-1.5 text-rose-200 text-xs font-medium">
+                <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
+                <span>Pengeluaran</span>
+              </div>
+              <p class="text-lg font-bold mt-0.5" id="dashboard-expense">Rp 0</p>
+              <p class="text-[10px] text-indigo-200">Bulan ini</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Alerts -->
+        <div id="dashboard-budget-alerts" class="space-y-2">
+          <h3 class="text-sm font-semibold text-slate-600 flex items-center gap-2">
+            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+            Peringatan Anggaran
+          </h3>
+          <div id="budget-alert-list" class="space-y-2">
+            <!-- Budget alert items rendered by JS -->
+            <div class="bg-white rounded-xl p-4 border border-slate-100 text-center">
+              <p class="text-xs text-slate-400">Belum ada data anggaran</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-slate-600 flex items-center gap-2">
+              <i data-lucide="clock" class="w-4 h-4"></i>
+              Transaksi Terakhir
+            </h3>
+            <button data-nav="transaksi" class="text-xs text-indigo-600 font-medium hover:underline">
+              Lihat Semua →
+            </button>
+          </div>
+          <div id="dashboard-recent-transactions" class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
+            <!-- Recent transactions rendered by JS -->
+            <div class="p-8 text-center">
+              <i data-lucide="inbox" class="w-10 h-10 text-slate-200 mx-auto mb-2"></i>
+              <p class="text-sm text-slate-400">Belum ada transaksi</p>
+              <p class="text-xs text-slate-300 mt-1">Ketuk tombol + untuk menambah transaksi pertama</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- VIEW: TRANSAKSI                           -->
+      <!-- ========================================= -->
+      <section id="view-transaksi" class="view-section hidden p-4 lg:p-8 space-y-4">
+        <!-- Filter Bar -->
+        <div class="bg-white rounded-xl border border-slate-100 p-4 grid grid-cols-1 md:grid-cols-3 gap-3 shadow-sm">
+          <div>
+            <label class="text-xs text-slate-500 font-semibold block mb-1.5">Bulan</label>
+            <input type="month" id="filter-month"
+                   class="w-full min-h-[48px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 font-semibold block mb-1.5">Akun</label>
+            <select id="filter-account"
+                    class="w-full min-h-[48px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="">Semua Akun</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 font-semibold block mb-1.5">Kategori</label>
+            <select id="filter-category"
+                    class="w-full min-h-[48px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="">Semua Kategori</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Transaction List -->
+        <div id="transaction-list" class="space-y-4">
+          <!-- Grouped by date, rendered by JS -->
+          <div class="bg-white rounded-xl border border-slate-100 p-8 text-center">
+            <i data-lucide="inbox" class="w-12 h-12 text-slate-200 mx-auto mb-3"></i>
+            <p class="text-sm text-slate-400">Belum ada transaksi</p>
+            <p class="text-xs text-slate-300 mt-1">Tambahkan transaksi pertama Anda</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- VIEW: LAPORAN                             -->
+      <!-- ========================================= -->
+      <section id="view-laporan" class="view-section hidden p-4 lg:p-8 space-y-4">
+        <!-- Tab Selector -->
+        <div class="bg-white rounded-xl border border-slate-100 p-1 flex">
+          <button id="tab-ringkasan" class="report-tab flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors bg-indigo-600 text-white">
+            Ringkasan
+          </button>
+          <button id="tab-grafik" class="report-tab flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-500 hover:text-slate-700">
+            Grafik
+          </button>
+        </div>
+
+        <!-- Month selector for reports -->
+        <div class="flex items-center gap-3">
+          <input type="month" id="report-month"
+                 class="flex-1 min-h-[44px] px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          <button id="btn-download-excel"
+                  class="min-h-[44px] px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-colors shadow-sm">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Download Excel</span>
+          </button>
+        </div>
+
+        <!-- Ringkasan Tab Content -->
+        <div id="content-ringkasan" class="space-y-4">
+          <!-- Monthly Summary Cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
+              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 mb-2">
+                <i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-500"></i>
+              </div>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pemasukan</p>
+              <p class="text-sm lg:text-base font-bold text-emerald-600 mt-1" id="report-total-income">Rp 0</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
+              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-50 mb-2">
+                <i data-lucide="arrow-up-right" class="w-4 h-4 text-rose-500"></i>
+              </div>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pengeluaran</p>
+              <p class="text-sm lg:text-base font-bold text-rose-600 mt-1" id="report-total-expense">Rp 0</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
+              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 mb-2">
+                <i data-lucide="wallet" class="w-4 h-4 text-indigo-500"></i>
+              </div>
+              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Selisih</p>
+              <p class="text-sm lg:text-base font-bold text-indigo-600 mt-1" id="report-net">Rp 0</p>
+            </div>
+          </div>
+
+          <!-- Budget Usage per Category -->
+          <div>
+            <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+              <i data-lucide="target" class="w-4 h-4"></i>
+              Penggunaan Anggaran
+            </h3>
+            <div id="report-budget-usage" class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden">
+              <!-- Budget usage items rendered by JS -->
+              <div class="p-6 text-center">
+                <p class="text-xs text-slate-400">Belum ada kategori dengan anggaran</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grafik Tab Content -->
+        <div id="content-grafik" class="hidden space-y-4">
+          <!-- Pie Chart -->
+          <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-4 h-4"></i>
+              Pengeluaran per Kategori
+            </h3>
+            <div class="relative" style="max-height: 300px;">
+              <canvas id="chart-expense-category"></canvas>
+            </div>
+            <div id="chart-expense-empty" class="hidden py-8 text-center">
+              <p class="text-xs text-slate-400">Belum ada data pengeluaran</p>
+            </div>
+          </div>
+
+          <!-- Bar Chart -->
+          <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+              Pemasukan vs Pengeluaran (6 Bulan Terakhir)
+            </h3>
+            <div class="relative" style="max-height: 300px;">
+              <canvas id="chart-income-expense"></canvas>
+            </div>
+            <div id="chart-bar-empty" class="hidden py-8 text-center">
+              <p class="text-xs text-slate-400">Belum ada data transaksi</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- VIEW: PENGATURAN                          -->
+      <!-- ========================================= -->
+      <section id="view-pengaturan" class="view-section hidden p-4 lg:p-8 space-y-6">
+
+        <!-- Section: Keamanan & PIN Login -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            Keamanan &amp; Kunci Aplikasi
+          </h3>
+          <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden shadow-sm">
+            <!-- Status PIN -->
+            <div class="p-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                  <i data-lucide="key-round" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-slate-800">Proteksi PIN Keamanan</p>
+                  <p class="text-xs text-slate-400" id="pin-status-text">Memeriksa status...</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="btn-manage-pin"
+                        class="min-h-[36px] px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors">
+                  Atur PIN
+                </button>
+                <button id="btn-disable-pin"
+                        class="hidden min-h-[36px] px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition-colors">
+                  Nonaktifkan
+                </button>
+              </div>
+            </div>
+
+            <!-- Auto-Lock Setting -->
+            <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-medium text-slate-700">Kunci Otomatis (Auto-Lock)</p>
+                <p class="text-xs text-slate-400">Kunci aplikasi setelah periode inaktivitas</p>
+              </div>
+              <select id="select-autolock"
+                      class="w-full sm:w-auto min-h-[48px] px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="immediate">Segera saat tab ditutup / reload</option>
+                <option value="5">Setelah 5 menit tidak aktif</option>
+                <option value="15">Setelah 15 menit tidak aktif</option>
+                <option value="never">Jangan kunci otomatis</option>
+              </select>
+            </div>
+
+            <!-- Lock Now Button -->
+            <button id="btn-lock-now"
+                    class="w-full flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors text-left text-rose-600">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+                  <i data-lucide="lock" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-slate-800">Kunci Aplikasi Sekarang</p>
+                  <p class="text-xs text-slate-400">Kunci layar dan lindungi data pribadi</p>
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section: Akun & Dompet -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-slate-600 flex items-center gap-2">
+              <i data-lucide="landmark" class="w-4 h-4"></i>
+              Akun &amp; Dompet
+            </h3>
+            <button id="btn-add-account"
+                    class="min-h-[36px] px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              Tambah Akun
+            </button>
+          </div>
+          <div id="account-list" class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden shadow-sm">
+            <!-- Account items rendered by JS -->
+            <div class="p-6 text-center">
+              <i data-lucide="wallet" class="w-8 h-8 text-slate-200 mx-auto mb-2"></i>
+              <p class="text-xs text-slate-400">Belum ada akun</p>
+              <p class="text-xs text-slate-300 mt-1">Tambahkan akun pertama seperti Dompet atau Rekening Bank</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Kategori -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+            <i data-lucide="tags" class="w-4 h-4"></i>
+            Kategori
+          </h3>
+          <!-- Category Type Tabs -->
+          <div class="flex gap-1 mb-3 bg-white rounded-xl border border-slate-100 p-1">
+            <button id="tab-cat-income" class="category-tab flex-1 py-2 rounded-lg text-sm font-medium transition-colors bg-emerald-500 text-white">
+              Pemasukan
+            </button>
+            <button id="tab-cat-expense" class="category-tab flex-1 py-2 rounded-lg text-sm font-medium transition-colors text-slate-500 hover:text-slate-700">
+              Pengeluaran
+            </button>
+          </div>
+          <div class="flex justify-end mb-2">
+            <button id="btn-add-category"
+                    class="min-h-[36px] px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              Tambah Kategori
+            </button>
+          </div>
+
+          <!-- Income Categories -->
+          <div id="category-income-list" class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden shadow-sm">
+            <div class="p-6 text-center">
+              <p class="text-xs text-slate-400">Belum ada kategori pemasukan</p>
+            </div>
+          </div>
+
+          <!-- Expense Categories -->
+          <div id="category-expense-list" class="hidden bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden shadow-sm">
+            <div class="p-6 text-center">
+              <p class="text-xs text-slate-400">Belum ada kategori pengeluaran</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Data & Backup -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4"></i>
+            Data &amp; Backup
+          </h3>
+          <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50 overflow-hidden shadow-sm">
+            <!-- Download Backup -->
+            <button id="btn-backup-download"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors text-left">
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50">
+                <i data-lucide="hard-drive-download" class="w-5 h-5 text-indigo-600"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-700">Download Backup</p>
+                <p class="text-xs text-slate-400">Simpan database sebagai file .sqlite</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+            </button>
+
+            <!-- Restore Backup -->
+            <label class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors text-left cursor-pointer">
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-50">
+                <i data-lucide="hard-drive-upload" class="w-5 h-5 text-amber-600"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-700">Restore / Import Backup</p>
+                <p class="text-xs text-slate-400">Muat ulang data dari file .sqlite</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+              <input type="file" id="input-restore-backup" accept=".sqlite,.db" class="hidden" />
+            </label>
+
+            <!-- Export Excel -->
+            <button id="btn-export-excel"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors text-left">
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-50">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-emerald-600"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-700">Export ke Excel</p>
+                <p class="text-xs text-slate-400">Download semua data dalam format .xlsx</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- App Info -->
+        <div class="text-center py-4">
+          <p class="text-xs text-slate-400">Keuangan Keluarga v1.0</p>
+          <p class="text-xs text-slate-300 mt-1">Data tersimpan di perangkat Anda (IndexedDB)</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- FLOATING ACTION BUTTON (FAB)                  -->
+  <!-- ============================================= -->
+  <button id="fab-add-transaction"
+          class="fab-button fixed right-4 bottom-24 lg:bottom-8 z-30 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-200 flex items-center justify-center transition-all active:scale-95">
+    <i data-lucide="plus" class="w-6 h-6"></i>
+  </button>
+
+  <!-- ============================================= -->
+  <!-- BOTTOM NAVIGATION BAR (Mobile only)           -->
+  <!-- ============================================= -->
+  <nav id="bottom-nav" class="bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
+    <div class="flex items-center justify-around px-2 py-1">
+      <button data-nav="dashboard" class="nav-item active flex flex-col items-center gap-0.5 py-2 px-3 relative">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+        <i data-lucide="layout-dashboard" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors">Dashboard</span>
+      </button>
+      <button data-nav="transaksi" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+        <i data-lucide="receipt-text" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors">Transaksi</span>
+      </button>
+      <button data-nav="laporan" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+        <i data-lucide="bar-chart-3" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors">Laporan</span>
+      </button>
+      <button data-nav="pengaturan" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+        <i data-lucide="settings" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors">Pengaturan</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================= -->
+  <!-- MODAL: ADD/EDIT TRANSACTION                   -->
+  <!-- ============================================= -->
+  <div id="modal-transaction" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-transaction"></div>
+    <div class="absolute inset-x-0 bottom-0 lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div class="bg-white rounded-t-2xl lg:rounded-2xl w-full lg:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 class="text-lg font-bold text-slate-800" id="modal-transaction-title">Tambah Transaksi</h2>
+          <button data-close-modal="modal-transaction" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <form id="form-transaction" class="p-5 space-y-4">
+          <input type="hidden" id="tx-id" value="" />
+
+          <!-- Transaction Type -->
+          <div>
+            <label class="text-xs text-slate-500 font-medium block mb-1.5">Jenis Transaksi</label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="cursor-pointer">
+                <input type="radio" name="tx-type" value="expense" class="peer sr-only" checked />
+                <div class="peer-checked:bg-rose-50 peer-checked:border-rose-300 peer-checked:text-rose-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">
+                  <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                  Pengeluaran
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="tx-type" value="income" class="peer sr-only" />
+                <div class="peer-checked:bg-emerald-50 peer-checked:border-emerald-300 peer-checked:text-emerald-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">
+                  <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+                  Pemasukan
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="tx-type" value="transfer" class="peer sr-only" />
+                <div class="peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">
+                  <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                  Transfer
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Amount -->
+          <div>
+            <label for="tx-amount" class="text-xs text-slate-500 font-medium block mb-1.5">Jumlah (Rp)</label>
+            <input type="number" id="tx-amount" placeholder="0" required min="1"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Date -->
+          <div>
+            <label for="tx-date" class="text-xs text-slate-500 font-medium block mb-1.5">Tanggal</label>
+            <input type="date" id="tx-date" required
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Account (From) -->
+          <div id="tx-account-from-group">
+            <label for="tx-account" class="text-xs text-slate-500 font-medium block mb-1.5">Akun</label>
+            <select id="tx-account" required
+                    class="w-full min-h-[48px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="">Pilih Akun</option>
+            </select>
+          </div>
+
+          <!-- Account To (for transfer) -->
+          <div id="tx-account-to-group" class="hidden">
+            <label for="tx-account-to" class="text-xs text-slate-500 font-medium block mb-1.5">Ke Akun</label>
+            <select id="tx-account-to"
+                    class="w-full min-h-[48px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="">Pilih Akun Tujuan</option>
+            </select>
+          </div>
+
+          <!-- Category (hidden for transfer) -->
+          <div id="tx-category-group">
+            <label for="tx-category" class="text-xs text-slate-500 font-medium block mb-1.5">Kategori</label>
+            <select id="tx-category" required
+                    class="w-full min-h-[48px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="">Pilih Kategori</option>
+            </select>
+          </div>
+
+          <!-- Note -->
+          <div>
+            <label for="tx-note" class="text-xs text-slate-500 font-medium block mb-1.5">Catatan (opsional)</label>
+            <textarea id="tx-note" rows="2" placeholder="Tambahkan catatan..."
+                      class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit"
+                  class="w-full min-h-[48px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]">
+            <i data-lucide="check" class="w-5 h-5"></i>
+            <span id="btn-tx-submit-text">Simpan Transaksi</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- MODAL: ADD/EDIT ACCOUNT                       -->
+  <!-- ============================================= -->
+  <div id="modal-account" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-account"></div>
+    <div class="absolute inset-x-0 bottom-0 lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div class="bg-white rounded-t-2xl lg:rounded-2xl w-full lg:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 class="text-lg font-bold text-slate-800" id="modal-account-title">Tambah Akun</h2>
+          <button data-close-modal="modal-account" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <form id="form-account" class="p-5 space-y-4">
+          <input type="hidden" id="acc-id" value="" />
+
+          <!-- Account Name -->
+          <div>
+            <label for="acc-name" class="text-xs text-slate-500 font-medium block mb-1.5">Nama Akun</label>
+            <input type="text" id="acc-name" placeholder="Contoh: Dompet, BCA, GoPay" required
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Initial Balance -->
+          <div>
+            <label for="acc-balance" class="text-xs text-slate-500 font-medium block mb-1.5">Saldo Awal (Rp)</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">Rp</span>
+              <input type="text" id="acc-balance" inputmode="numeric" placeholder="0" required autocomplete="off"
+                     class="w-full min-h-[48px] pl-11 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+            </div>
+          </div>
+
+          <!-- Account Icon / Type -->
+          <div>
+            <label for="acc-icon" class="text-xs text-slate-500 font-medium block mb-1.5">Jenis Akun</label>
+            <select id="acc-icon"
+                    class="w-full min-h-[48px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <option value="wallet">💰 Dompet / Tunai</option>
+              <option value="bank">🏦 Rekening Bank</option>
+              <option value="e-wallet">📱 E-Wallet</option>
+              <option value="savings">🐷 Tabungan</option>
+              <option value="other">📦 Lainnya</option>
+            </select>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit"
+                  class="w-full min-h-[48px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]">
+            <i data-lucide="check" class="w-5 h-5"></i>
+            <span id="btn-acc-submit-text">Simpan Akun</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- MODAL: ADD/EDIT CATEGORY                      -->
+  <!-- ============================================= -->
+  <div id="modal-category" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-category"></div>
+    <div class="absolute inset-x-0 bottom-0 lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div class="bg-white rounded-t-2xl lg:rounded-2xl w-full lg:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 class="text-lg font-bold text-slate-800" id="modal-category-title">Tambah Kategori</h2>
+          <button data-close-modal="modal-category" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <form id="form-category" class="p-5 space-y-4">
+          <input type="hidden" id="cat-id" value="" />
+
+          <!-- Category Type -->
+          <div>
+            <label class="text-xs text-slate-500 font-medium block mb-1.5">Jenis</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="cursor-pointer">
+                <input type="radio" name="cat-type" value="income" class="peer sr-only" checked />
+                <div class="peer-checked:bg-emerald-50 peer-checked:border-emerald-300 peer-checked:text-emerald-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">
+                  Pemasukan
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="cat-type" value="expense" class="peer sr-only" />
+                <div class="peer-checked:bg-rose-50 peer-checked:border-rose-300 peer-checked:text-rose-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">
+                  Pengeluaran
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Category Name -->
+          <div>
+            <label for="cat-name" class="text-xs text-slate-500 font-medium block mb-1.5">Nama Kategori</label>
+            <input type="text" id="cat-name" placeholder="Contoh: Gaji, Makan, Transportasi" required
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Category Icon (emoji) -->
+          <div>
+            <label for="cat-emoji" class="text-xs text-slate-500 font-medium block mb-1.5">Ikon (Emoji)</label>
+            <input type="text" id="cat-emoji" placeholder="🍔" maxlength="4"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Budget Limit (expense only) -->
+          <div id="cat-budget-group">
+            <label for="cat-budget" class="text-xs text-slate-500 font-medium block mb-1.5">Batas Anggaran per Bulan (Rp) — <span class="text-slate-400">opsional</span></label>
+            <input type="number" id="cat-budget" placeholder="0" min="0"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Submit -->
+          <button type="submit"
+                  class="w-full min-h-[48px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]">
+            <i data-lucide="check" class="w-5 h-5"></i>
+            <span id="btn-cat-submit-text">Simpan Kategori</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- MODAL: SET / CHANGE PIN                       -->
+  <!-- ============================================= -->
+  <div id="modal-set-pin" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-set-pin"></div>
+    <div class="absolute inset-x-0 bottom-0 lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div class="bg-white rounded-t-2xl lg:rounded-2xl w-full lg:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 class="text-lg font-bold text-slate-800" id="modal-pin-title">Atur PIN Keamanan</h2>
+          <button data-close-modal="modal-set-pin" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <form id="form-set-pin" class="p-5 space-y-4">
+          <!-- Current PIN (only when editing) -->
+          <div id="pin-current-group" class="hidden">
+            <label for="input-current-pin" class="text-xs text-slate-500 font-medium block mb-1.5">PIN Saat Ini</label>
+            <input type="password" id="input-current-pin" inputmode="numeric" maxlength="6" placeholder="••••••"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg tracking-widest font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- New PIN -->
+          <div>
+            <label for="input-new-pin" class="text-xs text-slate-500 font-medium block mb-1.5">PIN Baru (4–6 digit angka)</label>
+            <input type="password" id="input-new-pin" inputmode="numeric" maxlength="6" required placeholder="••••••"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg tracking-widest font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Confirm New PIN -->
+          <div>
+            <label for="input-confirm-pin" class="text-xs text-slate-500 font-medium block mb-1.5">Konfirmasi PIN Baru</label>
+            <input type="password" id="input-confirm-pin" inputmode="numeric" maxlength="6" required placeholder="••••••"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg tracking-widest font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+
+          <!-- Submit -->
+          <button type="submit"
+                  class="w-full min-h-[48px] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+            <span id="btn-pin-submit-text">Simpan PIN</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- MODAL: DISABLE PIN                            -->
+  <!-- ============================================= -->
+  <div id="modal-disable-pin" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-disable-pin"></div>
+    <div class="absolute inset-x-0 bottom-0 lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div class="bg-white rounded-t-2xl lg:rounded-2xl w-full lg:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <h2 class="text-lg font-bold text-slate-800">Nonaktifkan Kunci PIN</h2>
+          <button data-close-modal="modal-disable-pin" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+            <i data-lucide="x" class="w-5 h-5 text-slate-400"></i>
+          </button>
+        </div>
+        <form id="form-disable-pin" class="p-5 space-y-4">
+          <p class="text-xs text-slate-500">Masukkan PIN saat ini untuk menonaktifkan proteksi aplikasi:</p>
+          <div>
+            <input type="password" id="input-verify-disable-pin" inputmode="numeric" maxlength="6" required placeholder="••••••"
+                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg tracking-widest font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+          </div>
+          <button type="submit"
+                  class="w-full min-h-[48px] bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]">
+            <i data-lucide="shield-off" class="w-5 h-5"></i>
+            <span>Matikan Proteksi PIN</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- MODAL: CONFIRM DELETE                         -->
+  <!-- ============================================= -->
+  <div id="modal-confirm-delete" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0 bg-black/40" data-close-modal="modal-confirm-delete"></div>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+      <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-rose-50 mb-4">
+          <i data-lucide="trash-2" class="w-7 h-7 text-rose-500"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800 mb-1">Hapus Data?</h3>
+        <p class="text-sm text-slate-500 mb-6" id="delete-confirm-message">
+          Data yang dihapus tidak dapat dikembalikan. Apakah Anda yakin ingin melanjutkan?
+        </p>
+        <div class="flex gap-3">
+          <button data-close-modal="modal-confirm-delete"
+                  class="flex-1 min-h-[44px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-medium transition-colors">
+            Batal
+          </button>
+          <button id="btn-confirm-delete"
+                  class="flex-1 min-h-[44px] bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-medium transition-colors">
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- TOAST NOTIFICATION                            -->
+  <!-- ============================================= -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[110] space-y-2 pointer-events-none">
+    <!-- Toasts inserted here by JS -->
+  </div>
+
+  <!-- ============================================= -->
+  <!-- APP MODULE                                    -->
+  <!-- ============================================= -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
