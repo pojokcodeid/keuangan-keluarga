@@ -20,6 +20,7 @@ import {
 
 import { renderPieChart, renderBarChart, renderBudgetChart, destroyCharts } from './charts.js';
 import { exportToExcel } from './export.js';
+import { initTheme } from './theme.js';
 import { initBudgetUI, renderBudgets, renderBudgetAlerts } from './budget.js';
 import {
     isPinEnabled,
@@ -143,6 +144,7 @@ export function initUI() {
 
     // 7b. Budget (harian/mingguan/bulanan)
     initBudgetUI(() => rerenderCurrentView());
+    initTheme(() => { try { rerenderCurrentView(); } catch (_) { /* belum siap */ } });
     ['#tx-amount', '#acc-balance', '#cat-budget'].forEach(sel => attachNumberInputFormatter($(sel)));
 
     // 8. Render Initial View

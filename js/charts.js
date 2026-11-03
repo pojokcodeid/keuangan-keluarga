@@ -5,6 +5,7 @@
 
 import { getExpenseByCategory, getIncomeVsExpense, getBudgetStatuses } from './db.js';
 import { formatCurrency, getMonthName } from './utils.js';
+import { isDark } from './theme.js';
 
 // ---------------------------------------------------------------------------
 // Module-level chart instances (for destroy before re-create)
@@ -46,7 +47,7 @@ function applyChartDefaults() {
     if (!Chart) return;
     Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
     Chart.defaults.font.size = isMobile() ? 11 : 12;
-    Chart.defaults.color = '#6B7280';
+    Chart.defaults.color = isDark() ? '#94a3b8' : '#6B7280';
     Chart.defaults.responsive = true;
     Chart.defaults.maintainAspectRatio = false;
 }
@@ -153,7 +154,7 @@ export function renderPieChart(month, year) {
             c.fillText('Total Pengeluaran', centerX, centerY - f2 * 0.8);
 
             c.font = `700 ${f2}px 'Inter', system-ui, sans-serif`;
-            c.fillStyle = '#1F2937';
+            c.fillStyle = isDark() ? '#e2e8f0' : '#1F2937';
             c.fillText(formatted, centerX, centerY + f2 * 0.5);
 
             c.restore();
@@ -167,7 +168,7 @@ export function renderPieChart(month, year) {
             datasets: [{
                 data: amounts,
                 backgroundColor: colors,
-                borderColor: '#ffffff',
+                borderColor: isDark() ? '#172033' : '#ffffff',
                 borderWidth: 2,
                 hoverOffset: 6,
             }]
@@ -326,7 +327,7 @@ export function renderBarChart(months = 6) {
                         }
                     },
                     grid: {
-                        color: '#F3F4F6',
+                        color: isDark() ? '#243049' : '#F3F4F6',
                     }
                 }
             }
@@ -374,7 +375,7 @@ export function renderBudgetChart() {
             const c = chart.ctx;
             c.save();
             c.font = "600 10px 'Inter', system-ui, sans-serif";
-            c.fillStyle = '#475569';
+            c.fillStyle = isDark() ? '#cbd5e1' : '#475569';
             c.textBaseline = 'middle';
             c.textAlign = 'left';
             chart.getDatasetMeta(0).data.forEach((bar, i) => c.fillText(pcts[i] + '%', bar.x + 4, bar.y));
@@ -401,7 +402,7 @@ export function renderBudgetChart() {
                 }
             },
             scales: {
-                x: { beginAtZero: true, suggestedMax: 100, ticks: { callback: v => v + '%', maxTicksLimit: 5, font: { size: 10 } }, grid: { color: '#F3F4F6' } },
+                x: { beginAtZero: true, suggestedMax: 100, ticks: { callback: v => v + '%', maxTicksLimit: 5, font: { size: 10 } }, grid: { color: isDark() ? '#243049' : '#F3F4F6' } },
                 y: { grid: { display: false }, ticks: { font: { size: 10 } } }
             }
         },

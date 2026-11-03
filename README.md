@@ -13,3 +13,8 @@
 - Halaman Budget menampilkan ringkasan pemasukan, pengeluaran, total budget bulanan, dan sisa yang belum dialokasikan.
 - Grafik: tinggi tetap & legenda HTML untuk pie, label bulan singkat dan sumbu ringkas untuk bar, serta grafik baru "Budget vs Realisasi".
 - Semua input nominal (transaksi, saldo awal akun, batas kategori, budget) memakai format titik ribuan.
+
+## Mode tampilan (Terang / Gelap / Otomatis)
+- Pilih di **Pengaturan → Tampilan**. Mode *Otomatis* mengikuti pengaturan perangkat dan berubah langsung saat sistem berganti tema.
+- Pilihan tersimpan di browser (`kk_theme`) dan diterapkan sebelum halaman tampil, jadi tidak berkedip. Warna grafik ikut menyesuaikan.
+- Kode: `js/theme.js` + blok `html.dark` di `<style>` pada `index.html`.
