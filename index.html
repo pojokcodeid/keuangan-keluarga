@@ -22,6 +22,9 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
   <title>Keuangan Keluarga — Akuntansi Rumah Tangga</title>
 
+  <!-- FontAwesome (ikon kategori & budget) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -69,6 +72,9 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Kotak ikon berwarna */
+    .ib { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
     /* Modal backdrop */
     .modal-backdrop {
@@ -251,7 +257,7 @@
   <div id="lock-screen" class="fixed inset-0 z-[90] hidden flex flex-col items-center justify-between bg-slate-900 text-white p-6 select-none overflow-y-auto">
     <!-- Header / Brand -->
     <div class="flex flex-col items-center mt-4 lg:mt-8">
-      <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/20 mb-3">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-3xl shadow-indigo-500/20 mb-3">
         🔒
       </div>
       <h2 class="text-xl font-bold tracking-tight text-white">Keamanan Aplikasi</h2>
@@ -390,7 +396,7 @@
       <!-- ========================================= -->
       <section id="view-dashboard" class="view-section p-4 lg:p-8 space-y-6">
         <!-- Saldo Card -->
-        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-indigo-100">
+        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-indigo-200">
           <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider">Total Saldo Semua Akun</p>
           <p class="text-3xl font-bold mt-1" id="dashboard-total-saldo">Rp 0</p>
           <div class="flex items-center gap-4 mt-4">
@@ -490,16 +496,13 @@
       <!-- ========================================= -->
       <!-- VIEW: BUDGET                              -->
       <!-- ========================================= -->
-      <section id="view-budget" class="view-section hidden p-4 lg:p-8 space-y-4">
+      <section id="view-budget" class="view-section hidden p-4 pb-40 lg:p-8 lg:pb-8 space-y-4">
         <div class="flex items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-800">Budget &amp; Anggaran</h2>
             <p class="text-xs text-slate-400">Batasi pengeluaran harian, mingguan, atau bulanan.</p>
           </div>
-          <button id="btn-add-budget" class="min-h-[40px] px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Buat Budget
-          </button>
+          
         </div>
         <div id="budget-summary"></div>
         <div id="budget-list" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
@@ -826,7 +829,7 @@
   <!-- FLOATING ACTION BUTTON (FAB)                  -->
   <!-- ============================================= -->
   <button id="fab-add-transaction"
-          class="fab-button fixed right-4 bottom-24 lg:bottom-8 z-30 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-indigo-100 flex items-center justify-center transition-all active:scale-95">
+          class="fab-button fixed right-4 bottom-24 lg:bottom-8 z-30 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-indigo-200 flex items-center justify-center transition-all active:scale-95">
     <i data-lucide="plus" class="w-6 h-6"></i>
   </button>
 
@@ -997,15 +1000,15 @@
             <div class="grid grid-cols-3 gap-2">
             <label class="cursor-pointer">
               <input type="radio" name="budget-period" value="daily" class="peer sr-only"  />
-              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">Harian</div>
+              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors"><i class="fa-solid fa-sun"></i>Harian</div>
             </label>
             <label class="cursor-pointer">
               <input type="radio" name="budget-period" value="weekly" class="peer sr-only"  />
-              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">Mingguan</div>
+              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors"><i class="fa-solid fa-calendar-week"></i>Mingguan</div>
             </label>
             <label class="cursor-pointer">
               <input type="radio" name="budget-period" value="monthly" class="peer sr-only" checked />
-              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors">Bulanan</div>
+              <div class="peer-checked:bg-indigo-50 peer-checked:border-indigo-300 peer-checked:text-indigo-600 min-h-[44px] flex items-center justify-center gap-1.5 border border-slate-200 rounded-lg text-sm text-slate-500 transition-colors"><i class="fa-solid fa-calendar-days"></i>Bulanan</div>
             </label>
             </div>
             <p class="text-[11px] text-slate-400 mt-1.5">Otomatis berulang: harian = per hari, mingguan = Senin–Minggu, bulanan = per bulan kalender.</p>
@@ -1023,6 +1026,7 @@
             <select id="budget-category"
               class="w-full min-h-[48px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></select>
           </div>
+          <div id="budget-icon-picker"></div>
           <label class="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer">
             <input type="checkbox" id="budget-active" class="w-4 h-4 rounded border-slate-300 text-indigo-600" checked />
             Budget aktif
@@ -1142,12 +1146,8 @@
                    class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
 
-          <!-- Category Icon (emoji) -->
-          <div>
-            <label for="cat-emoji" class="text-xs text-slate-500 font-medium block mb-1.5">Ikon (Emoji)</label>
-            <input type="text" id="cat-emoji" placeholder="🍔" maxlength="4"
-                   class="w-full min-h-[44px] px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
-          </div>
+          <!-- Category Icon (FontAwesome) -->
+          <div id="cat-icon-picker"></div>
 
           <!-- Budget Limit (expense only) -->
           <div id="cat-budget-group">

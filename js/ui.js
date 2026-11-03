@@ -21,7 +21,8 @@ import {
 import { renderPieChart, renderBarChart, renderBudgetChart, destroyCharts } from './charts.js';
 import { exportToExcel } from './export.js';
 import { initTheme } from './theme.js';
-import { initBudgetUI, renderBudgets, renderBudgetAlerts } from './budget.js';
+import { iconBadge, emojiFor, createIconPicker, resolveBudgetIcon } from './icons.js';
+import { initBudgetUI, renderBudgets, renderBudgetAlerts, openBudgetModal } from './budget.js';
 import {
     isPinEnabled,
     setupNewPin,
@@ -64,10 +65,7 @@ const CATEGORY_ICONS = {
 };
 
 function getCategoryEmoji(icon) {
-    if (!icon) return CATEGORY_ICONS.default;
-    // If it's already an emoji character, return it directly
-    if (/\p{Extended_Pictographic}/u.test(icon)) return icon;
-    return CATEGORY_ICONS[icon] || CATEGORY_ICONS.default;
+    return emojiFor(icon);   // dipakai di <option>; tampilan visual memakai iconBadge()
 }
 
 function todayISO() {
@@ -118,7 +116,11 @@ export function initUI() {
     // 3. FAB Add Transaction
     const fab = $('#fab-add-transaction');
     if (fab) {
-        fab.addEventListener('click', () => openTransactionModal());
+        fab.addEventListener('click', () => {
+            // Tombol bulat yang sama: di halaman Budget membuka form budget
+            const active = document.querySelector('.view-section:not(.hidden)');
+            if (active && active.id === 'view-budget') openBudgetModal(); else openTransactionModal();
+        });
     }
 
     // 4. Transaction filter bar listeners
@@ -144,6 +146,7 @@ export function initUI() {
 
     // 7b. Budget (harian/mingguan/bulanan)
     initBudgetUI(() => rerenderCurrentView());
+    catIconPicker = createIconPicker($('#cat-icon-picker'));
     initTheme(() => { try { rerenderCurrentView(); } catch (_) { /* belum siap */ } });
     ['#tx-amount', '#acc-balance', '#cat-budget'].forEach(sel => attachNumberInputFormatter($(sel)));
 
@@ -175,7 +178,8 @@ export function switchView(viewName) {
     // FAB Visibility (only show on dashboard and transaksi)
     const fab = $('#fab-add-transaction');
     if (fab) {
-        fab.style.display = (viewName === 'dashboard' || viewName === 'transaksi') ? 'flex' : 'none';
+        fab.style.display = (viewName === 'dashboard' || viewName === 'transaksi' || viewName === 'budget') ? 'flex' : 'none';
+        fab.setAttribute('aria-label', viewName === 'budget' ? 'Buat budget' : 'Tambah transaksi');
     }
 
     // Render active view content
@@ -402,6 +406,8 @@ export function renderTransactions() {
     refreshIcons();
 }
 
+let catIconPicker = null;
+
 function renderTransactionRowHtml(tx, showActions = true) {
     const isIncome = tx.type === 'income';
     const isExpense = tx.type === 'expense';
@@ -429,6 +435,10 @@ function renderTransactionRowHtml(tx, showActions = true) {
         typeBadge = `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">Transfer</span>`;
     }
 
+    const txBadge = isTransfer
+        ? iconBadge('fa-solid fa-right-left|#3B82F6', { size: 36 })
+        : iconBadge(tx.category_icon || (isIncome ? 'briefcase' : 'shopping-cart'), { size: 36 });
+
     const title = isTransfer
         ? `${tx.account_name || 'Akun'} → ${tx.to_account_name || 'Akun Tujuan'}`
         : (tx.category_name || 'Tanpa Kategori');
@@ -441,9 +451,7 @@ function renderTransactionRowHtml(tx, showActions = true) {
         <div class="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
              onclick="window.appUI.openTransactionModal(${tx.id})">
             <div class="flex items-center gap-3 min-w-0 flex-1">
-                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-lg shrink-0">
-                    ${iconEmoji}
-                </div>
+                ${txBadge}
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
                         <p class="text-sm font-semibold text-slate-800 truncate">${title}</p>
@@ -517,7 +525,7 @@ function updateTxBudgetInfo() {
             const msg = over ? `Melebihi budget ${formatCurrency(-b.remaining)}` : `Sisa ${formatCurrency(b.remaining)}`;
             return `<div class="rounded-xl border ${frame} p-3 space-y-1.5">
                 <div class="flex items-center justify-between gap-2 text-xs">
-                    <span class="font-semibold text-slate-700 truncate">${b.name} <span class="font-normal text-slate-400">· ${BUDGET_PERIOD[b.period_type]}</span></span>
+                    <span class="flex items-center gap-2 min-w-0 font-semibold text-slate-700">${iconBadge(resolveBudgetIcon(b), { size: 22 })}<span class="truncate">${b.name} <span class="font-normal text-slate-400">· ${BUDGET_PERIOD[b.period_type]}</span></span></span>
                     <span class="font-bold ${over ? 'text-rose-600' : warn ? 'text-amber-600' : 'text-emerald-600'}">${pct}%</span>
                 </div>
                 <div class="w-full bg-white rounded-full h-2 overflow-hidden"><div class="${bar} h-2 rounded-full" style="width:${Math.min(pct, 100)}%"></div></div>
@@ -1186,14 +1194,12 @@ export function renderAccounts() {
 
     listEl.innerHTML = accounts.map(acc => {
         const balance = getAccountBalance(acc.id);
-        const iconEmoji = acc.type === 'bank' ? '🏦' : (acc.type === 'e-wallet' ? '📱' : '💰');
+        const iconEmoji = iconBadge(acc.type === 'bank' ? 'fa-solid fa-building-columns|#3B82F6' : (acc.type === 'e-wallet' ? 'fa-solid fa-mobile-screen-button|#A855F7' : 'fa-solid fa-wallet|#10B981'), { size: 40 });
 
         return `
             <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-lg shrink-0">
-                        ${iconEmoji}
-                    </div>
+                    ${iconEmoji}
                     <div>
                         <p class="text-sm font-bold text-slate-800">${acc.name}</p>
                         <p class="text-xs text-slate-400">Saldo: <strong class="text-indigo-600 font-semibold">${formatCurrency(balance)}</strong></p>
@@ -1360,9 +1366,7 @@ function renderCategoryRowHtml(cat) {
     return `
         <div class="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-lg shrink-0">
-                    ${getCategoryEmoji(cat.icon)}
-                </div>
+                ${iconBadge(cat.icon, { size: 36 })}
                 <div>
                     <p class="text-sm font-semibold text-slate-800">${cat.name}</p>
                     ${budgetInfo}
@@ -1402,7 +1406,7 @@ export function openCategoryModal(id = null, defaultType = 'expense') {
         if (submitBtnText) submitBtnText.textContent = 'Perbarui Kategori';
         if (idInput) idInput.value = cat.id;
         if (nameInput) nameInput.value = cat.name;
-        if (emojiInput) emojiInput.value = getCategoryEmoji(cat.icon);
+        if (catIconPicker) catIconPicker.set(cat.icon);
         if (budgetInput) budgetInput.value = cat.budget_limit ? formatNumberString(Math.round(cat.budget_limit)) : '';
 
         const radio = modal.querySelector(`input[name="cat-type"][value="${cat.type}"]`);
@@ -1414,7 +1418,7 @@ export function openCategoryModal(id = null, defaultType = 'expense') {
         if (submitBtnText) submitBtnText.textContent = 'Simpan Kategori';
         if (idInput) idInput.value = '';
         if (nameInput) nameInput.value = '';
-        if (emojiInput) emojiInput.value = '🏷️';
+        if (catIconPicker) catIconPicker.set('');
         if (budgetInput) budgetInput.value = '';
 
         const radio = modal.querySelector(`input[name="cat-type"][value="${defaultType}"]`);
@@ -1443,7 +1447,7 @@ export async function handleCategorySubmit() {
     const name = nameInput ? nameInput.value.trim() : '';
 
     const emojiInput = $('#cat-emoji');
-    const icon = emojiInput ? emojiInput.value.trim() || 'tag' : 'tag';
+    const icon = catIconPicker ? catIconPicker.get() : 'fa-solid fa-tag|#6366F1';
 
     const budgetInput = $('#cat-budget');
     const budgetLimit = (type === 'expense' && budgetInput) ? (parseAmount(budgetInput.value) || 0) : 0;

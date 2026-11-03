@@ -18,3 +18,8 @@
 - Pilih di **Pengaturan → Tampilan**. Mode *Otomatis* mengikuti pengaturan perangkat dan berubah langsung saat sistem berganti tema.
 - Pilihan tersimpan di browser (`kk_theme`) dan diterapkan sebelum halaman tampil, jadi tidak berkedip. Warna grafik ikut menyesuaikan.
 - Kode: `js/theme.js` + blok `html.dark` di `<style>` pada `index.html`.
+
+## Ikon FontAwesome
+- Kategori dan budget memakai picker ikon FontAwesome (9 grup, 100+ ikon) dengan 12 pilihan warna. Kategori lama (emoji / ikon lama) tetap tampil, otomatis dikonversi ke ikon berwarna.
+- Budget: tiap budget punya ikon & warna sendiri; bila tidak dipilih, ikut ikon kategori atau ikon periode (harian = matahari, mingguan = kalender minggu, bulanan = kalender).
+- Pie chart memakai warna ikon kategori. Kode: `js/icons.js`. Service worker kini juga menyimpan CDN (FontAwesome, Tailwind, Chart.js) untuk mode offline.

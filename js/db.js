@@ -151,9 +151,16 @@ CREATE TABLE IF NOT EXISTS budgets (
     period_type TEXT CHECK(period_type IN ('daily', 'weekly', 'monthly')) NOT NULL,
     amount_limit REAL NOT NULL,
     is_active INTEGER DEFAULT 1,
+    icon TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `;
+
+// Instalasi budget versi awal belum punya kolom icon
+function ensureBudgetColumns() {
+    const cols = query('PRAGMA table_info(budgets)').map(c => c.name);
+    if (!cols.includes('icon')) db.run('ALTER TABLE budgets ADD COLUMN icon TEXT');
+}
 
 // Migrasi satu kali: batas bulanan per kategori lama -> budget bulanan
 function migrateCategoryBudgets() {
@@ -231,6 +238,7 @@ export async function initDatabase() {
     // Ensure schema exists
     const hadBudgets = scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='budgets'") > 0;
     db.run(SCHEMA_SQL);
+    ensureBudgetColumns();
 
     // Seed default data
     seedData();
@@ -669,13 +677,14 @@ export function getExpenseByCategory(month, year) {
     return query(
         `SELECT
             c.name AS categoryName,
+            c.icon AS icon,
             COALESCE(SUM(t.amount), 0) AS total
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
         WHERE t.type = 'expense'
             AND CAST(strftime('%m', t.transaction_date) AS INTEGER) = ?
             AND CAST(strftime('%Y', t.transaction_date) AS INTEGER) = ?
-        GROUP BY c.id, c.name
+        GROUP BY c.id, c.name, c.icon
         ORDER BY total DESC`,
         [month, year]
     );
@@ -802,6 +811,7 @@ export async function importDatabase(uint8Array) {
     // Backup lama mungkin belum punya tabel budgets
     const hadBudgets = scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='budgets'") > 0;
     db.run(SCHEMA_SQL);
+    ensureBudgetColumns();
     if (!hadBudgets) migrateCategoryBudgets();
     await saveDatabase();
 }
@@ -865,15 +875,15 @@ function validateBudget({ name, periodType, amountLimit }) {
 
 export async function addBudget(b) {
     validateBudget(b);
-    run('INSERT INTO budgets (name, category_id, period_type, amount_limit, is_active) VALUES (?, ?, ?, ?, ?)',
-        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1]);
+    run('INSERT INTO budgets (name, category_id, period_type, amount_limit, is_active, icon) VALUES (?, ?, ?, ?, ?, ?)',
+        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1, b.icon || null]);
     await saveDatabase();
 }
 
 export async function updateBudget(id, b) {
     validateBudget(b);
-    run('UPDATE budgets SET name = ?, category_id = ?, period_type = ?, amount_limit = ?, is_active = ? WHERE id = ?',
-        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1, id]);
+    run('UPDATE budgets SET name = ?, category_id = ?, period_type = ?, amount_limit = ?, is_active = ?, icon = ? WHERE id = ?',
+        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1, b.icon || null, id]);
     await saveDatabase();
 }
 

@@ -2,7 +2,7 @@
 // sw.js — Service Worker for Keuangan Keluarga Offline Support (PWA)
 // =============================================================================
 
-const CACHE_NAME = 'keuangan-keluarga-v5';
+const CACHE_NAME = 'keuangan-keluarga-v7';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -15,7 +15,8 @@ const ASSETS_TO_CACHE = [
     './js/export.js',
     './js/utils.js',
     './js/budget.js',
-    './js/theme.js'
+    './js/theme.js',
+    './js/icons.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -51,7 +52,7 @@ self.addEventListener('fetch', (event) => {
             }
             return fetch(event.request).then((networkResponse) => {
                 // Optionally cache fetched external assets like CDNs
-                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque') && ['basic', 'cors', 'opaque'].includes(networkResponse.type)) {
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseToCache);

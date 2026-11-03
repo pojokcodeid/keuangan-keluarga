@@ -6,6 +6,7 @@
 import { getExpenseByCategory, getIncomeVsExpense, getBudgetStatuses } from './db.js';
 import { formatCurrency, getMonthName } from './utils.js';
 import { isDark } from './theme.js';
+import { iconBadge, parseIcon } from './icons.js';
 
 // ---------------------------------------------------------------------------
 // Module-level chart instances (for destroy before re-create)
@@ -61,13 +62,13 @@ function applyChartDefaults() {
  * @param {number} month 1-12
  * @param {number} year
  */
-function renderPieLegend(labels, amounts, colors, total) {
+function renderPieLegend(labels, amounts, colors, total, icons = []) {
     const el = document.querySelector('#chart-expense-legend');
     if (!el) return;
     el.innerHTML = labels.map((l, i) => {
         const pct = total > 0 ? ((amounts[i] / total) * 100).toFixed(1) : '0.0';
         return `<div class="flex items-center gap-2 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${colors[i]}"></span>
+            ${iconBadge(icons[i] || 'tag', { size: 22 })}
             <span class="flex-1 min-w-0 truncate text-slate-600">${esc(l)}</span>
             <span class="text-slate-400 shrink-0">${pct}%</span>
             <span class="font-semibold text-slate-700 shrink-0 w-24 text-right">${formatCurrency(amounts[i])}</span>
@@ -125,10 +126,11 @@ export function renderPieChart(month, year) {
     if (emptyEl) emptyEl.style.display = 'none';
     canvas.style.display = 'block';
 
-    const labels = data.map(d => d.category_name || 'Tanpa Kategori');
+    const labels = data.map(d => d.categoryName || d.category_name || 'Tanpa Kategori');
     const amounts = data.map(d => d.total);
     const totalExpense = amounts.reduce((s, v) => s + v, 0);
-    const colors = data.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+    const colors = data.map((d, i) => d.icon ? parseIcon(d.icon).color : CHART_COLORS[i % CHART_COLORS.length]);
+    const icons = data.map(d => d.icon);
 
     const ctx = canvas.getContext('2d');
 
@@ -191,7 +193,7 @@ export function renderPieChart(month, year) {
         plugins: [centerTextPlugin]
     });
 
-    renderPieLegend(labels, amounts, colors, totalExpense);
+    renderPieLegend(labels, amounts, colors, totalExpense, icons);
 }
 
 // ---------------------------------------------------------------------------
