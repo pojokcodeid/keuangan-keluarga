@@ -8,17 +8,19 @@ import {
     addAccount, updateAccount, deleteAccount,
     getAllCategories, getCategoryById, addCategory, updateCategory, deleteCategory,
     getAllTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction,
-    getMonthlyIncome, getMonthlyExpense, getBudgetUsage, getMonthlySummary,
+    getMonthlyIncome, getMonthlyExpense, getBudgetUsage, getMonthlySummary, getBudgetsForTransaction,
     exportDatabase, importDatabase
 } from './db.js';
 
 import {
     formatCurrency, formatDate, formatDateGroup, getMonthName,
-    getCurrentMonth, getCurrentYear, showToast, showConfirm, $, $$
+    getCurrentMonth, getCurrentYear, showToast, showConfirm, $, $$,
+    formatNumberString, attachNumberInputFormatter, parseAmount
 } from './utils.js';
 
-import { renderPieChart, renderBarChart, destroyCharts } from './charts.js';
+import { renderPieChart, renderBarChart, renderBudgetChart, destroyCharts } from './charts.js';
 import { exportToExcel } from './export.js';
+import { initBudgetUI, renderBudgets, renderBudgetAlerts } from './budget.js';
 import {
     isPinEnabled,
     setupNewPin,
@@ -139,6 +141,10 @@ export function initUI() {
     // 7. Settings View Event Listeners
     setupSettingsEvents();
 
+    // 7b. Budget (harian/mingguan/bulanan)
+    initBudgetUI(() => rerenderCurrentView());
+    ['#tx-amount', '#acc-balance', '#cat-budget'].forEach(sel => attachNumberInputFormatter($(sel)));
+
     // 8. Render Initial View
     switchView('dashboard');
 }
@@ -178,6 +184,9 @@ export function switchView(viewName) {
         case 'transaksi':
             populateTransactionFilterDropdowns();
             renderTransactions();
+            break;
+        case 'budget':
+            renderBudgets();
             break;
         case 'laporan':
             renderReports();
@@ -266,57 +275,8 @@ export function renderDashboard() {
     refreshIcons();
 }
 
-function renderDashboardBudgetAlerts(month, year) {
-    const container = $('#budget-alert-list');
-    if (!container) return;
-
-    const usageList = getBudgetUsage(month, year);
-    // Filter categories that have budget and are > 75%
-    const alerts = usageList.filter(u => u.budget_limit > 0 && u.percentage >= 75);
-
-    if (alerts.length === 0) {
-        container.innerHTML = `
-            <div class="bg-white rounded-xl p-4 border border-slate-100 flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <i data-lucide="shield-check" class="w-4 h-4"></i>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold text-slate-700">Semua Anggaran Aman</p>
-                    <p class="text-[11px] text-slate-400">Pengeluaran bulan ini masih di bawah batas anggaran.</p>
-                </div>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = alerts.map(item => {
-        const pct = Math.round(item.percentage);
-        const isOver = pct > 100;
-        const badgeBg = isOver ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-600 border-amber-200';
-        const barColor = isOver ? 'bg-rose-500' : 'bg-amber-500';
-        const iconName = isOver ? 'alert-triangle' : 'alert-circle';
-
-        return `
-            <div class="bg-white rounded-xl p-3.5 border ${badgeBg} space-y-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
-                        <span class="text-xs font-bold text-slate-800">${item.category_name}</span>
-                    </div>
-                    <span class="text-xs font-bold px-2 py-0.5 rounded-full ${isOver ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}">
-                        ${pct}% ${isOver ? 'Melebihi' : 'Hampir Habis'}
-                    </span>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div class="${barColor} h-2 rounded-full transition-all duration-500" style="width: ${Math.min(pct, 100)}%"></div>
-                </div>
-                <div class="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Terpakai: ${formatCurrency(item.spent)}</span>
-                    <span>Batas: ${formatCurrency(item.budget_limit)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
+function renderDashboardBudgetAlerts() {
+    renderBudgetAlerts($('#budget-alert-list'));
 }
 
 function renderDashboardRecentTransactions() {
@@ -518,6 +478,11 @@ function setupTransactionModalEvents() {
     });
 
     // Form submit
+    // Info budget real-time saat mengisi pengeluaran
+    ['#tx-amount', '#tx-date'].forEach(sel => $(sel)?.addEventListener('input', updateTxBudgetInfo));
+    $('#tx-category')?.addEventListener('change', updateTxBudgetInfo);
+    $('#tx-date')?.addEventListener('change', updateTxBudgetInfo);
+
     const form = $('#form-transaction');
     if (form) {
         form.addEventListener('submit', (e) => {
@@ -525,6 +490,39 @@ function setupTransactionModalEvents() {
             handleTransactionSubmit();
         });
     }
+}
+
+const BUDGET_PERIOD = { daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan' };
+
+function updateTxBudgetInfo() {
+    const box = $('#tx-budget-info');
+    if (!box) return;
+    const type = document.querySelector('input[name="tx-type"]:checked')?.value;
+    const date = $('#tx-date')?.value;
+    if (type !== 'expense' || !date) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+    const catId = parseInt($('#tx-category')?.value, 10) || null;
+    const list = getBudgetsForTransaction({ date, categoryId: catId, amount: parseAmount($('#tx-amount')?.value), excludeId: editingTransactionId });
+    if (!list.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+    box.classList.remove('hidden');
+    box.innerHTML = '<p class="text-xs text-slate-500 font-medium flex items-center gap-1.5"><i data-lucide="target" class="w-3.5 h-3.5"></i>Dampak ke budget</p>' +
+        list.map(b => {
+            const pct = Math.round(b.percentage);
+            const over = pct >= 100, warn = pct >= 75;
+            const bar = over ? 'bg-rose-500' : warn ? 'bg-amber-500' : 'bg-emerald-500';
+            const frame = over ? 'border-rose-200 bg-rose-50' : warn ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50';
+            const msg = over ? `Melebihi budget ${formatCurrency(-b.remaining)}` : `Sisa ${formatCurrency(b.remaining)}`;
+            return `<div class="rounded-xl border ${frame} p-3 space-y-1.5">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                    <span class="font-semibold text-slate-700 truncate">${b.name} <span class="font-normal text-slate-400">· ${BUDGET_PERIOD[b.period_type]}</span></span>
+                    <span class="font-bold ${over ? 'text-rose-600' : warn ? 'text-amber-600' : 'text-emerald-600'}">${pct}%</span>
+                </div>
+                <div class="w-full bg-white rounded-full h-2 overflow-hidden"><div class="${bar} h-2 rounded-full" style="width:${Math.min(pct, 100)}%"></div></div>
+                <p class="text-[11px] text-slate-500">${formatCurrency(b.after)} / ${formatCurrency(b.amount_limit)} · ${msg}</p>
+            </div>`;
+        }).join('');
+    refreshIcons();
 }
 
 function updateTransactionModalFormByType(type) {
@@ -553,6 +551,7 @@ function updateTransactionModalFormByType(type) {
         // Populate category dropdown based on income / expense type
         populateCategoryModalDropdown(type);
     }
+    updateTxBudgetInfo();
 }
 
 function populateCategoryModalDropdown(type, selectedId = null) {
@@ -605,7 +604,7 @@ export function openTransactionModal(id = null) {
         if (modalTitle) modalTitle.textContent = 'Edit Transaksi';
         if (submitBtnText) submitBtnText.textContent = 'Perbarui Transaksi';
         if (idInput) idInput.value = tx.id;
-        if (amountInput) amountInput.value = tx.amount;
+        if (amountInput) amountInput.value = formatNumberString(Math.round(tx.amount));
         if (dateInput) dateInput.value = tx.transaction_date;
         if (noteInput) noteInput.value = tx.note || '';
 
@@ -637,6 +636,7 @@ export function openTransactionModal(id = null) {
     }
 
     modal.classList.remove('hidden');
+    updateTxBudgetInfo();
     refreshIcons();
 }
 
@@ -653,7 +653,7 @@ export async function handleTransactionSubmit() {
     const type = typeRadio ? typeRadio.value : 'expense';
 
     const amountInput = $('#tx-amount');
-    const amount = amountInput ? parseFloat(amountInput.value) : 0;
+    const amount = amountInput ? parseAmount(amountInput.value) : 0;
 
     const dateInput = $('#tx-date');
     const date = dateInput ? dateInput.value : '';
@@ -714,6 +714,14 @@ export async function handleTransactionSubmit() {
 
         closeTransactionModal();
         rerenderCurrentView();
+
+        // Peringatan budget setelah pengeluaran tersimpan
+        if (type === 'expense') {
+            const hit = getBudgetsForTransaction({ date, categoryId }).filter(b => b.percentage >= 75);
+            const over = hit.filter(b => b.percentage >= 100);
+            if (over.length) showToast('Budget terlampaui: ' + over.map(b => b.name).join(', '), 'warning');
+            else if (hit.length) showToast('Budget hampir habis: ' + hit.map(b => b.name).join(', '), 'warning');
+        }
     } catch (err) {
         showToast('Gagal menyimpan transaksi: ' + err.message, 'error');
     }
@@ -878,6 +886,7 @@ function renderReportCharts() {
 
     destroyCharts();
     renderPieChart(month, year);
+    renderBudgetChart();
     renderBarChart(6);
 }
 
@@ -1222,7 +1231,7 @@ export function openAccountModal(id = null) {
         if (submitBtnText) submitBtnText.textContent = 'Perbarui Akun';
         if (idInput) idInput.value = acc.id;
         if (nameInput) nameInput.value = acc.name;
-        if (balanceInput) balanceInput.value = acc.initial_balance;
+        if (balanceInput) balanceInput.value = formatNumberString(Math.round(acc.initial_balance)) || '0';
         if (iconSelect) iconSelect.value = acc.type || 'wallet';
     } else {
         if (modalTitle) modalTitle.textContent = 'Tambah Akun';
@@ -1250,7 +1259,7 @@ export async function handleAccountSubmit() {
     const name = nameInput ? nameInput.value.trim() : '';
 
     const balanceInput = $('#acc-balance');
-    const initialBalance = balanceInput ? (parseFloat(balanceInput.value) || 0) : 0;
+    const initialBalance = balanceInput ? (parseAmount(balanceInput.value) || 0) : 0;
 
     const iconSelect = $('#acc-icon');
     const type = iconSelect ? iconSelect.value : 'cash';
@@ -1392,7 +1401,7 @@ export function openCategoryModal(id = null, defaultType = 'expense') {
         if (idInput) idInput.value = cat.id;
         if (nameInput) nameInput.value = cat.name;
         if (emojiInput) emojiInput.value = getCategoryEmoji(cat.icon);
-        if (budgetInput) budgetInput.value = cat.budget_limit || '';
+        if (budgetInput) budgetInput.value = cat.budget_limit ? formatNumberString(Math.round(cat.budget_limit)) : '';
 
         const radio = modal.querySelector(`input[name="cat-type"][value="${cat.type}"]`);
         if (radio) radio.checked = true;
@@ -1435,7 +1444,7 @@ export async function handleCategorySubmit() {
     const icon = emojiInput ? emojiInput.value.trim() || 'tag' : 'tag';
 
     const budgetInput = $('#cat-budget');
-    const budgetLimit = (type === 'expense' && budgetInput) ? (parseFloat(budgetInput.value) || 0) : 0;
+    const budgetLimit = (type === 'expense' && budgetInput) ? (parseAmount(budgetInput.value) || 0) : 0;
 
     if (!name) {
         showToast('Nama kategori harus diisi', 'warning');
@@ -1553,6 +1562,9 @@ function rerenderCurrentView() {
             break;
         case 'transaksi':
             renderTransactions();
+            break;
+        case 'budget':
+            renderBudgets();
             break;
         case 'laporan':
             renderReports();

@@ -143,7 +143,24 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (to_account_id) REFERENCES accounts(id),
     FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+
+CREATE TABLE IF NOT EXISTS budgets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category_id INTEGER,
+    period_type TEXT CHECK(period_type IN ('daily', 'weekly', 'monthly')) NOT NULL,
+    amount_limit REAL NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `;
+
+// Migrasi satu kali: batas bulanan per kategori lama -> budget bulanan
+function migrateCategoryBudgets() {
+    run(`INSERT INTO budgets (name, category_id, period_type, amount_limit, is_active)
+         SELECT 'Budget ' || name, id, 'monthly', budget_limit, 1
+         FROM categories WHERE type = 'expense' AND budget_limit > 0`);
+}
 
 function seedData() {
     // Only seed if tables are empty
@@ -212,10 +229,12 @@ export async function initDatabase() {
     }
 
     // Ensure schema exists
+    const hadBudgets = scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='budgets'") > 0;
     db.run(SCHEMA_SQL);
 
     // Seed default data
     seedData();
+    if (!hadBudgets) migrateCategoryBudgets();
 
     // Persist
     await saveDatabase();
@@ -458,6 +477,7 @@ export async function deleteCategory(id) {
     if (refCount > 0) {
         throw new Error('Kategori tidak dapat dihapus karena masih memiliki transaksi terkait');
     }
+    run('DELETE FROM budgets WHERE category_id = ?', [id]);
     run('DELETE FROM categories WHERE id = ?', [id]);
     await saveDatabase();
 }
@@ -779,6 +799,10 @@ export async function importDatabase(uint8Array) {
         db.close();
     }
     db = new SQL.Database(uint8Array);
+    // Backup lama mungkin belum punya tabel budgets
+    const hadBudgets = scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='budgets'") > 0;
+    db.run(SCHEMA_SQL);
+    if (!hadBudgets) migrateCategoryBudgets();
     await saveDatabase();
 }
 
@@ -787,10 +811,117 @@ export async function importDatabase(uint8Array) {
  */
 export async function clearDatabase() {
     if (!db) throw new Error('Database belum diinisialisasi');
+    run('DROP TABLE IF EXISTS budgets');
     run('DROP TABLE IF EXISTS transactions');
     run('DROP TABLE IF EXISTS categories');
     run('DROP TABLE IF EXISTS accounts');
     db.run(SCHEMA_SQL);
     seedData();
+    migrateCategoryBudgets();
     await saveDatabase();
+}
+
+// =============================================================================
+// Budget (harian / mingguan / bulanan)
+// =============================================================================
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/**
+ * Rentang periode kalender: harian = hari ini, mingguan = Senin-Minggu, bulanan = 1 s/d akhir bulan.
+ * Budget otomatis "berulang" karena rentang selalu dihitung dari tanggal hari ini.
+ */
+export function getPeriodRange(type, ref = new Date()) {
+    const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+    let s = new Date(d), e = new Date(d);
+    if (type === 'weekly') {
+        s.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        e = new Date(s); e.setDate(s.getDate() + 6);
+    } else if (type === 'monthly') {
+        s = new Date(d.getFullYear(), d.getMonth(), 1);
+        e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    }
+    return { start: toISO(s), end: toISO(e), endDate: e };
+}
+
+export function getAllBudgets() {
+    return query(`SELECT b.*, c.name AS category_name, c.icon AS category_icon
+        FROM budgets b LEFT JOIN categories c ON c.id = b.category_id
+        ORDER BY b.is_active DESC,
+                 CASE b.period_type WHEN 'daily' THEN 1 WHEN 'weekly' THEN 2 ELSE 3 END, b.id DESC`);
+}
+
+export function getBudgetById(id) {
+    const rows = query('SELECT * FROM budgets WHERE id = ?', [id]);
+    return rows.length ? rows[0] : null;
+}
+
+function validateBudget({ name, periodType, amountLimit }) {
+    if (!name || !name.trim()) throw new Error('Nama budget tidak boleh kosong');
+    if (!['daily', 'weekly', 'monthly'].includes(periodType)) throw new Error('Periode budget tidak valid');
+    if (!(amountLimit > 0)) throw new Error('Batas budget harus lebih dari 0');
+}
+
+export async function addBudget(b) {
+    validateBudget(b);
+    run('INSERT INTO budgets (name, category_id, period_type, amount_limit, is_active) VALUES (?, ?, ?, ?, ?)',
+        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1]);
+    await saveDatabase();
+}
+
+export async function updateBudget(id, b) {
+    validateBudget(b);
+    run('UPDATE budgets SET name = ?, category_id = ?, period_type = ?, amount_limit = ?, is_active = ? WHERE id = ?',
+        [b.name.trim(), b.categoryId || null, b.periodType, b.amountLimit, b.isActive === 0 ? 0 : 1, id]);
+    await saveDatabase();
+}
+
+export async function deleteBudget(id) {
+    run('DELETE FROM budgets WHERE id = ?', [id]);
+    await saveDatabase();
+}
+
+/**
+ * Status real-time setiap budget pada periode berjalan:
+ * terpakai, persentase, sisa, dan batas aman per hari.
+ */
+export function getBudgetStatuses(onlyActive = false) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return getAllBudgets().filter(b => !onlyActive || b.is_active).map(b => {
+        const { start, end, endDate } = getPeriodRange(b.period_type, now);
+        const sql = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'expense' AND transaction_date BETWEEN ? AND ?"
+            + (b.category_id ? ' AND category_id = ?' : '');
+        const spent = scalar(sql, b.category_id ? [start, end, b.category_id] : [start, end]) || 0;
+        const remaining = b.amount_limit - spent;
+        const daysLeft = Math.max(1, Math.round((endDate - today) / 864e5) + 1);
+        return {
+            ...b, start, end, spent, remaining, daysLeft,
+            percentage: b.amount_limit > 0 ? (spent / b.amount_limit) * 100 : 0,
+            dailySafe: Math.max(0, remaining) / daysLeft
+        };
+    });
+}
+
+/**
+ * Budget yang terdampak oleh sebuah pengeluaran (global + kategori yang sama),
+ * dihitung pada periode yang memuat tanggal transaksi.
+ * `amount` ditambahkan ke terpakai (simulasi); `excludeId` dipakai saat edit transaksi.
+ */
+export function getBudgetsForTransaction({ date, categoryId = null, amount = 0, excludeId = null }) {
+    const [y, m, d] = date.split('-').map(Number);
+    const ref = new Date(y, m - 1, d);
+    return getAllBudgets()
+        .filter(b => b.is_active && (!b.category_id || b.category_id === categoryId))
+        .map(b => {
+            const { start, end } = getPeriodRange(b.period_type, ref);
+            let sql = "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE type = 'expense' AND transaction_date BETWEEN ? AND ?";
+            const p = [start, end];
+            if (b.category_id) { sql += ' AND category_id = ?'; p.push(b.category_id); }
+            if (excludeId) { sql += ' AND id != ?'; p.push(excludeId); }
+            const spent = scalar(sql, p) || 0;
+            const after = spent + (amount || 0);
+            return { ...b, start, end, spent, after, remaining: b.amount_limit - after, percentage: (after / b.amount_limit) * 100 };
+        });
 }

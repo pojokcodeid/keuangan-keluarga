@@ -3,7 +3,7 @@
 // Keuangan Keluarga - Household Accounting App
 // =============================================================================
 
-import { getExpenseByCategory, getIncomeVsExpense } from './db.js';
+import { getExpenseByCategory, getIncomeVsExpense, getBudgetStatuses } from './db.js';
 import { formatCurrency, getMonthName } from './utils.js';
 
 // ---------------------------------------------------------------------------
@@ -11,6 +11,11 @@ import { formatCurrency, getMonthName } from './utils.js';
 // ---------------------------------------------------------------------------
 let pieChartInstance = null;
 let barChartInstance = null;
+let budgetChartInstance = null;
+
+const isMobile = () => window.innerWidth < 640;
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
 // ---------------------------------------------------------------------------
 // Color palette for charts
@@ -40,7 +45,7 @@ function applyChartDefaults() {
     const Chart = window.Chart;
     if (!Chart) return;
     Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
-    Chart.defaults.font.size = 12;
+    Chart.defaults.font.size = isMobile() ? 11 : 12;
     Chart.defaults.color = '#6B7280';
     Chart.defaults.responsive = true;
     Chart.defaults.maintainAspectRatio = false;
@@ -55,6 +60,20 @@ function applyChartDefaults() {
  * @param {number} month 1-12
  * @param {number} year
  */
+function renderPieLegend(labels, amounts, colors, total) {
+    const el = document.querySelector('#chart-expense-legend');
+    if (!el) return;
+    el.innerHTML = labels.map((l, i) => {
+        const pct = total > 0 ? ((amounts[i] / total) * 100).toFixed(1) : '0.0';
+        return `<div class="flex items-center gap-2 text-xs">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${colors[i]}"></span>
+            <span class="flex-1 min-w-0 truncate text-slate-600">${esc(l)}</span>
+            <span class="text-slate-400 shrink-0">${pct}%</span>
+            <span class="font-semibold text-slate-700 shrink-0 w-24 text-right">${formatCurrency(amounts[i])}</span>
+        </div>`;
+    }).join('');
+}
+
 export function renderPieChart(month, year) {
     const Chart = window.Chart;
     if (!Chart) {
@@ -79,6 +98,7 @@ export function renderPieChart(month, year) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         canvas.style.display = 'none';
+        const lg = document.querySelector('#chart-expense-legend'); if (lg) lg.innerHTML = '';
 
         let emptyEl = canvas.parentElement.querySelector('.chart-empty-state');
         if (!emptyEl) {
@@ -123,16 +143,18 @@ export function renderPieChart(month, year) {
             c.textAlign = 'center';
             c.textBaseline = 'middle';
 
-            // Label
-            c.font = "500 11px 'Inter', system-ui, sans-serif";
-            c.fillStyle = '#9CA3AF';
-            c.fillText('Total Pengeluaran', centerX, centerY - 12);
-
-            // Amount
-            c.font = "700 14px 'Inter', system-ui, sans-serif";
-            c.fillStyle = '#1F2937';
+            const inner = Math.min(chartArea.right - chartArea.left, chartArea.bottom - chartArea.top) * 0.62;
             const formatted = formatCurrency(totalExpense);
-            c.fillText(formatted, centerX, centerY + 10);
+            const f1 = Math.max(9, Math.min(11, inner / 11));
+            const f2 = Math.max(10, Math.min(16, inner / (formatted.length * 0.62)));
+
+            c.font = `500 ${f1}px 'Inter', system-ui, sans-serif`;
+            c.fillStyle = '#9CA3AF';
+            c.fillText('Total Pengeluaran', centerX, centerY - f2 * 0.8);
+
+            c.font = `700 ${f2}px 'Inter', system-ui, sans-serif`;
+            c.fillStyle = '#1F2937';
+            c.fillText(formatted, centerX, centerY + f2 * 0.5);
 
             c.restore();
         }
@@ -153,29 +175,7 @@ export function renderPieChart(month, year) {
         options: {
             cutout: '65%',
             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 16,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        generateLabels(chart) {
-                            const dataset = chart.data.datasets[0];
-                            return chart.data.labels.map((label, i) => {
-                                const value = dataset.data[i];
-                                const pct = totalExpense > 0 ? ((value / totalExpense) * 100).toFixed(1) : 0;
-                                return {
-                                    text: `${label} (${pct}%)`,
-                                    fillStyle: colors[i],
-                                    strokeStyle: colors[i],
-                                    hidden: false,
-                                    index: i,
-                                    pointStyle: 'circle',
-                                };
-                            });
-                        }
-                    }
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label(context) {
@@ -189,6 +189,8 @@ export function renderPieChart(month, year) {
         },
         plugins: [centerTextPlugin]
     });
+
+    renderPieLegend(labels, amounts, colors, totalExpense);
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +262,7 @@ export function renderBarChart(months = 6) {
     if (emptyEl) emptyEl.style.display = 'none';
     canvas.style.display = 'block';
 
-    const labels = data.map(d => getMonthName(d.month));
+    const labels = data.map(d => SHORT_MONTHS[d.month - 1]);
     const incomeData = data.map(d => d.income || 0);
     const expenseData = data.map(d => d.expense || 0);
 
@@ -277,8 +279,9 @@ export function renderBarChart(months = 6) {
                     backgroundColor: '#10B981',
                     borderColor: '#059669',
                     borderWidth: 1,
-                    borderRadius: 6,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    maxBarThickness: 28,
                 },
                 {
                     label: 'Pengeluaran',
@@ -286,20 +289,18 @@ export function renderBarChart(months = 6) {
                     backgroundColor: '#F43F5E',
                     borderColor: '#E11D48',
                     borderWidth: 1,
-                    borderRadius: 6,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    maxBarThickness: 28,
                 }
             ]
         },
         options: {
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        padding: 16,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                    }
+                    labels: { padding: 10, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', font: { size: 11 } }
                 },
                 tooltip: {
                     callbacks: {
@@ -312,12 +313,16 @@ export function renderBarChart(months = 6) {
             scales: {
                 x: {
                     grid: { display: false },
+                    ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true },
                 },
                 y: {
                     beginAtZero: true,
                     ticks: {
+                        maxTicksLimit: 5,
+                        font: { size: 10 },
                         callback(value) {
-                            return formatAxisLabel(value);
+                            const t = formatAxisLabel(value);
+                            return isMobile() ? t.replace('Rp ', '') : t;
                         }
                     },
                     grid: {
@@ -336,7 +341,76 @@ export function renderBarChart(months = 6) {
 /**
  * Destroy existing chart instances to prevent memory leaks.
  */
+export function renderBudgetChart() {
+    const Chart = window.Chart;
+    const canvas = document.querySelector('#chart-budget-usage');
+    if (!Chart || !canvas) return;
+    applyChartDefaults();
+    if (budgetChartInstance) { budgetChartInstance.destroy(); budgetChartInstance = null; }
+
+    const wrap = document.querySelector('#chart-budget-wrap');
+    const empty = document.querySelector('#chart-budget-empty');
+    const items = getBudgetStatuses(true);
+    if (!items.length) {
+        if (wrap) wrap.style.display = 'none';
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+    if (wrap) { wrap.style.display = 'block'; wrap.style.height = Math.max(150, items.length * 44 + 40) + 'px'; }
+    if (empty) empty.classList.add('hidden');
+
+    const PER = { daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan' };
+    const maxLen = isMobile() ? 16 : 28;
+    const labels = items.map(b => {
+        const n = `${b.name} · ${PER[b.period_type]}`;
+        return n.length > maxLen ? n.slice(0, maxLen - 1) + '…' : n;
+    });
+    const pcts = items.map(b => Math.round(b.percentage));
+    const colors = pcts.map(p => p >= 100 ? '#F43F5E' : p >= 75 ? '#F59E0B' : '#10B981');
+
+    const pctLabel = {
+        id: 'pctLabel',
+        afterDatasetsDraw(chart) {
+            const c = chart.ctx;
+            c.save();
+            c.font = "600 10px 'Inter', system-ui, sans-serif";
+            c.fillStyle = '#475569';
+            c.textBaseline = 'middle';
+            c.textAlign = 'left';
+            chart.getDatasetMeta(0).data.forEach((bar, i) => c.fillText(pcts[i] + '%', bar.x + 4, bar.y));
+            c.restore();
+        }
+    };
+
+    budgetChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ data: pcts, backgroundColor: colors, borderRadius: 4, maxBarThickness: 18 }] },
+        options: {
+            indexAxis: 'y',
+            layout: { padding: { right: 34 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: (ctx) => items[ctx[0].dataIndex].name,
+                        label: (ctx) => {
+                            const b = items[ctx.dataIndex];
+                            return [` Terpakai: ${formatCurrency(b.spent)}`, ` Batas: ${formatCurrency(b.amount_limit)} (${pcts[ctx.dataIndex]}%)`];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { beginAtZero: true, suggestedMax: 100, ticks: { callback: v => v + '%', maxTicksLimit: 5, font: { size: 10 } }, grid: { color: '#F3F4F6' } },
+                y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+            }
+        },
+        plugins: [pctLabel]
+    });
+}
+
 export function destroyCharts() {
+    if (budgetChartInstance) { budgetChartInstance.destroy(); budgetChartInstance = null; }
     if (pieChartInstance) {
         pieChartInstance.destroy();
         pieChartInstance = null;

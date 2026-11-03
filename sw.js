@@ -2,7 +2,7 @@
 // sw.js — Service Worker for Keuangan Keluarga Offline Support (PWA)
 // =============================================================================
 
-const CACHE_NAME = 'keuangan-keluarga-v2';
+const CACHE_NAME = 'keuangan-keluarga-v4';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -13,7 +13,8 @@ const ASSETS_TO_CACHE = [
     './js/ui.js',
     './js/charts.js',
     './js/export.js',
-    './js/utils.js'
+    './js/utils.js',
+    './js/budget.js'
 ];
 
 self.addEventListener('install', (event) => {
