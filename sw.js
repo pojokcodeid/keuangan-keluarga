@@ -2,7 +2,7 @@
 // sw.js — Service Worker for Keuangan Keluarga Offline Support (PWA)
 // =============================================================================
 
-const CACHE_NAME = 'keuangan-keluarga-v7';
+const CACHE_NAME = 'keuangan-keluarga-v8';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

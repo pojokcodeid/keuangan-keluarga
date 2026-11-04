@@ -98,7 +98,7 @@ export function renderBudgets() {
             : tile('fa-hourglass-half', '#6366F1', `Aman/hari`, formatCurrency(b.dailySafe));
         return `
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${b.is_active ? '' : 'opacity-60'}">
-            <!--<div class="h-1.5" style="background:${grad(t)}"></div>-->
+            <div class="h-1.5" style="background:${grad(t)}"></div>
             <div class="p-4 space-y-3">
                 <div class="flex items-start gap-3">
                     ${iconBadge(resolveBudgetIcon(b), { size: 40 })}

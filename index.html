@@ -73,6 +73,13 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+    /* Mobile: konten tidak tertutup menu navigasi bawah / tombol tambah */
+    @media (max-width: 1023px) {
+      main { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+      #view-dashboard, #view-transaksi, #view-budget { padding-bottom: 3.5rem !important; }  /* ruang ekstra untuk tombol bulat */
+      #fab-add-transaction { bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+    }
+
     /* Kotak ikon berwarna */
     .ib { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
@@ -257,7 +264,7 @@
   <div id="lock-screen" class="fixed inset-0 z-[90] hidden flex flex-col items-center justify-between bg-slate-900 text-white p-6 select-none overflow-y-auto">
     <!-- Header / Brand -->
     <div class="flex flex-col items-center mt-4 lg:mt-8">
-      <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-3xl shadow-indigo-500/20 mb-3">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-3xl shadow-xs shadow-indigo-500/20 mb-3">
         🔒
       </div>
       <h2 class="text-xl font-bold tracking-tight text-white">Keamanan Aplikasi</h2>
@@ -396,7 +403,7 @@
       <!-- ========================================= -->
       <section id="view-dashboard" class="view-section p-4 lg:p-8 space-y-6">
         <!-- Saldo Card -->
-        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-indigo-200">
+        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-xs shadow-indigo-200">
           <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider">Total Saldo Semua Akun</p>
           <p class="text-3xl font-bold mt-1" id="dashboard-total-saldo">Rp 0</p>
           <div class="flex items-center gap-4 mt-4">
@@ -496,7 +503,7 @@
       <!-- ========================================= -->
       <!-- VIEW: BUDGET                              -->
       <!-- ========================================= -->
-      <section id="view-budget" class="view-section hidden p-4 pb-40 lg:p-8 lg:pb-8 space-y-4">
+      <section id="view-budget" class="view-section hidden p-4 lg:p-8 space-y-4">
         <div class="flex items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-bold text-slate-800">Budget &amp; Anggaran</h2>
@@ -829,7 +836,7 @@
   <!-- FLOATING ACTION BUTTON (FAB)                  -->
   <!-- ============================================= -->
   <button id="fab-add-transaction"
-          class="fab-button fixed right-4 bottom-24 lg:bottom-8 z-30 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-indigo-200 flex items-center justify-center transition-all active:scale-95">
+          class="fab-button fixed right-4 bottom-24 lg:bottom-8 z-30 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xs shadow-indigo-200 flex items-center justify-center transition-all active:scale-95">
     <i data-lucide="plus" class="w-6 h-6"></i>
   </button>
 
