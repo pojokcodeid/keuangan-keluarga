@@ -19,7 +19,7 @@ import {
 } from './utils.js';
 
 import { renderPieChart, renderBarChart, renderBudgetChart, destroyCharts } from './charts.js';
-import { exportToExcel } from './export.js';
+import { exportToExcel, ACCOUNT_TYPE_LABELS } from './export.js';
 import { initTheme } from './theme.js';
 import { iconBadge, emojiFor, createIconPicker, resolveBudgetIcon } from './icons.js';
 import { initBudgetUI, renderBudgets, renderBudgetAlerts, openBudgetModal } from './budget.js';
@@ -250,6 +250,9 @@ export function updateActiveNav(viewName) {
 // DASHBOARD
 // ============================================================================
 
+// Escape teks untuk disisipkan ke innerHTML (nama akun/kategori dsb.)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 export function renderDashboard() {
     const totalBalance = getTotalBalance();
     const curMonth = getCurrentMonth();
@@ -258,9 +261,8 @@ export function renderDashboard() {
     const monthlyIncome = getMonthlyIncome(curMonth, curYear);
     const monthlyExpense = getMonthlyExpense(curMonth, curYear);
 
-    // 1. Total Saldo
-    const dashboardSaldo = $('#dashboard-total-saldo');
-    if (dashboardSaldo) dashboardSaldo.textContent = formatCurrency(totalBalance);
+    // 1. Sisa saldo tiap akun & dompet (bukan satu angka total)
+    renderDashboardAccountBalances();
 
     const headerSaldo = $('#header-saldo-value');
     if (headerSaldo) headerSaldo.textContent = formatCurrency(totalBalance);
@@ -279,6 +281,45 @@ export function renderDashboard() {
     renderDashboardRecentTransactions();
 
     refreshIcons();
+}
+
+/**
+ * Rincian sisa saldo setiap item akun & dompet di kartu dashboard.
+ * Saldo per akun = saldo awal + pemasukan − pengeluaran + transfer masuk − transfer keluar.
+ */
+function renderDashboardAccountBalances() {
+    const container = $('#dashboard-account-balances');
+    if (!container) return;
+
+    const accounts = getAllAccounts();
+
+    if (accounts.length === 0) {
+        container.innerHTML = `
+            <p class="text-xs text-indigo-200 mt-1">Belum ada akun atau dompet. Tambahkan lewat menu Pengaturan → Akun &amp; Dompet.</p>
+        `;
+        return;
+    }
+
+    container.innerHTML = accounts.map((acc, i) => {
+        const balance = getAccountBalance(acc.id);
+        const iconName = acc.type === 'bank' ? 'landmark' : (acc.type === 'e-wallet' ? 'smartphone' : 'wallet');
+        const typeLabel = ACCOUNT_TYPE_LABELS[acc.type] || 'Akun';
+
+        return `
+            <div class="flex items-center justify-between gap-3 py-2.5 ${i > 0 ? 'border-t border-white/15' : ''}">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                        <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                    </span>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold truncate">${esc(acc.name)}</p>
+                        <p class="text-[10px] text-indigo-200 truncate">${esc(typeLabel)}</p>
+                    </div>
+                </div>
+                <p class="text-sm font-bold whitespace-nowrap">${formatCurrency(balance)}</p>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderDashboardBudgetAlerts() {

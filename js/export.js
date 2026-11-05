@@ -21,7 +21,7 @@ const TYPE_LABELS = {
     transfer: 'Transfer Antar-Akun'
 };
 
-const ACCOUNT_TYPE_LABELS = {
+export const ACCOUNT_TYPE_LABELS = {
     cash: 'Dompet / Kas Tunai',
     wallet: 'Dompet / Kas Tunai',
     bank: 'Rekening Bank',
