@@ -73,10 +73,48 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+    /* Cegah viewport melebar & pertahankan proporsi mobile */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    #app-shell {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    main {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .view-section {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+    }
+
+    /* Pastikan gambar, svg, dan canvas responsif */
+    canvas, svg, img {
+      max-width: 100%;
+    }
+
     /* Mobile: konten tidak tertutup menu navigasi bawah / tombol tambah */
     @media (max-width: 1023px) {
       main { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important; }
-      #view-dashboard, #view-transaksi, #view-budget { padding-bottom: 3.5rem !important; }  /* ruang ekstra untuk tombol bulat */
+      #view-dashboard, #view-transaksi, #view-budget, #view-laporan, #view-pengaturan {
+        padding-bottom: 2.5rem !important;
+      }
       #fab-add-transaction { bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important; }
     }
 
@@ -240,7 +278,7 @@
   </style>
 </head>
 
-<body class="h-full bg-slate-50 font-sans text-slate-800 antialiased">
+<body class="h-full bg-slate-50 font-sans text-slate-800 antialiased overflow-x-hidden max-w-full w-full">
 
   <!-- ============================================= -->
   <!-- SPLASH / LOADING SCREEN                       -->
@@ -322,7 +360,7 @@
   <!-- ============================================= -->
   <!-- APP SHELL                                     -->
   <!-- ============================================= -->
-  <div id="app-shell" class="flex min-h-full">
+  <div id="app-shell" class="flex min-h-full w-full max-w-full overflow-x-hidden">
 
     <!-- =========================================== -->
     <!-- SIDEBAR (Desktop only, lg+)                 -->
@@ -374,24 +412,24 @@
     <!-- =========================================== -->
     <!-- MAIN CONTENT AREA                           -->
     <!-- =========================================== -->
-    <main class="flex-1 lg:ml-64 pb-20 lg:pb-0 min-h-full">
+    <main class="flex-1 min-w-0 w-full max-w-full overflow-x-hidden lg:ml-64 pb-20 lg:pb-0 min-h-full">
 
       <!-- Mobile Header -->
-      <header class="lg:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div class="flex items-center justify-between px-4 py-3">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">💰</span>
-            <div>
-              <h1 class="text-base font-bold text-slate-800 leading-tight">Keuangan Keluarga</h1>
-              <p class="text-[10px] text-slate-400 -mt-0.5">Akuntansi Rumah Tangga</p>
+      <header class="lg:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 w-full max-w-full">
+        <div class="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 gap-2">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="text-2xl shrink-0">💰</span>
+            <div class="min-w-0 flex-1">
+              <h1 class="text-sm sm:text-base font-bold text-slate-800 leading-tight truncate">Keuangan Keluarga</h1>
+              <p class="text-[10px] text-slate-400 truncate -mt-0.5">Akuntansi Rumah Tangga</p>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <div id="header-saldo" class="text-right">
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Total Saldo</p>
-              <p class="text-sm font-bold text-indigo-600" id="header-saldo-value">Rp 0</p>
+          <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div id="header-saldo" class="text-right min-w-0 max-w-[130px] sm:max-w-none">
+              <p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider truncate">Total Saldo</p>
+              <p class="text-xs sm:text-sm font-bold text-indigo-600 truncate" id="header-saldo-value">Rp 0</p>
             </div>
-            <button id="btn-header-lock" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors" title="Kunci Aplikasi">
+            <button id="btn-header-lock" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors shrink-0" title="Kunci Aplikasi">
               <i data-lucide="lock" class="w-4 h-4"></i>
             </button>
           </div>
@@ -403,27 +441,27 @@
       <!-- ========================================= -->
       <section id="view-dashboard" class="view-section p-4 lg:p-8 space-y-6">
         <!-- Saldo Card -->
-        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-5 text-white shadow-indigo-200">
-          <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider">Sisa Saldo Semua Akun &amp; Dompet</p>
-          <div id="dashboard-account-balances" class="mt-1">
+        <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-4 sm:p-5 text-white shadow-indigo-200 overflow-hidden">
+          <p class="text-indigo-200 text-xs font-medium uppercase tracking-wider truncate">Sisa Saldo Semua Akun &amp; Dompet</p>
+          <div id="dashboard-account-balances" class="mt-1 max-h-56 overflow-y-auto pr-0.5">
             <!-- Sisa saldo tiap akun/dompet dirender oleh JS -->
           </div>
-          <div class="flex items-center gap-4 mt-4">
-            <div class="flex-1 bg-white/10 rounded-lg p-3">
+          <div class="flex items-center gap-2.5 sm:gap-4 mt-3 sm:mt-4">
+            <div class="flex-1 min-w-0 bg-white/10 rounded-lg p-2.5 sm:p-3">
               <div class="flex items-center gap-1.5 text-emerald-200 text-xs font-medium">
-                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
-                <span>Pemasukan</span>
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 shrink-0"></i>
+                <span class="truncate">Pemasukan</span>
               </div>
-              <p class="text-lg font-bold mt-0.5" id="dashboard-income">Rp 0</p>
-              <p class="text-[10px] text-indigo-200">Bulan ini</p>
+              <p class="text-sm sm:text-lg font-bold mt-0.5 truncate" id="dashboard-income">Rp 0</p>
+              <p class="text-[10px] text-indigo-200 truncate">Bulan ini</p>
             </div>
-            <div class="flex-1 bg-white/10 rounded-lg p-3">
+            <div class="flex-1 min-w-0 bg-white/10 rounded-lg p-2.5 sm:p-3">
               <div class="flex items-center gap-1.5 text-rose-200 text-xs font-medium">
-                <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
-                <span>Pengeluaran</span>
+                <i data-lucide="trending-down" class="w-3.5 h-3.5 shrink-0"></i>
+                <span class="truncate">Pengeluaran</span>
               </div>
-              <p class="text-lg font-bold mt-0.5" id="dashboard-expense">Rp 0</p>
-              <p class="text-[10px] text-indigo-200">Bulan ini</p>
+              <p class="text-sm sm:text-lg font-bold mt-0.5 truncate" id="dashboard-expense">Rp 0</p>
+              <p class="text-[10px] text-indigo-200 truncate">Bulan ini</p>
             </div>
           </div>
         </div>
@@ -545,27 +583,27 @@
         <!-- Ringkasan Tab Content -->
         <div id="content-ringkasan" class="space-y-4">
           <!-- Monthly Summary Cards -->
-          <div class="grid grid-cols-3 gap-3">
-            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
-              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 mb-2">
-                <i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-500"></i>
+          <div class="grid grid-cols-3 gap-1.5 sm:gap-3">
+            <div class="bg-white rounded-xl border border-slate-100 p-2 sm:p-4 text-center card-hover min-w-0 overflow-hidden">
+              <div class="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-50 mb-1 sm:mb-2 shrink-0">
+                <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500"></i>
               </div>
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pemasukan</p>
-              <p class="text-sm lg:text-base font-bold text-emerald-600 mt-1" id="report-total-income">Rp 0</p>
+              <p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider truncate">Pemasukan</p>
+              <p class="text-xs sm:text-sm lg:text-base font-bold text-emerald-600 mt-0.5 sm:mt-1 truncate" id="report-total-income">Rp 0</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
-              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-50 mb-2">
-                <i data-lucide="arrow-up-right" class="w-4 h-4 text-rose-500"></i>
+            <div class="bg-white rounded-xl border border-slate-100 p-2 sm:p-4 text-center card-hover min-w-0 overflow-hidden">
+              <div class="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-50 mb-1 sm:mb-2 shrink-0">
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500"></i>
               </div>
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pengeluaran</p>
-              <p class="text-sm lg:text-base font-bold text-rose-600 mt-1" id="report-total-expense">Rp 0</p>
+              <p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider truncate">Pengeluaran</p>
+              <p class="text-xs sm:text-sm lg:text-base font-bold text-rose-600 mt-0.5 sm:mt-1 truncate" id="report-total-expense">Rp 0</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center card-hover">
-              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 mb-2">
-                <i data-lucide="wallet" class="w-4 h-4 text-indigo-500"></i>
+            <div class="bg-white rounded-xl border border-slate-100 p-2 sm:p-4 text-center card-hover min-w-0 overflow-hidden">
+              <div class="inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-50 mb-1 sm:mb-2 shrink-0">
+                <i data-lucide="wallet" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500"></i>
               </div>
-              <p class="text-[10px] text-slate-400 uppercase tracking-wider">Selisih</p>
-              <p class="text-sm lg:text-base font-bold text-indigo-600 mt-1" id="report-net">Rp 0</p>
+              <p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider truncate">Selisih</p>
+              <p class="text-xs sm:text-sm lg:text-base font-bold text-indigo-600 mt-0.5 sm:mt-1 truncate" id="report-net">Rp 0</p>
             </div>
           </div>
 
@@ -587,12 +625,12 @@
         <!-- Grafik Tab Content -->
         <div id="content-grafik" class="hidden space-y-4">
           <!-- Pie Chart -->
-          <div class="bg-white rounded-xl border border-slate-100 p-4">
+          <div class="bg-white rounded-xl border border-slate-100 p-4 min-w-0 overflow-hidden">
             <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
               <i data-lucide="pie-chart" class="w-4 h-4"></i>
               Pengeluaran per Kategori
             </h3>
-            <div class="relative h-[230px] sm:h-[300px]">
+            <div class="relative h-[230px] sm:h-[300px] w-full max-w-full overflow-hidden">
               <canvas id="chart-expense-category"></canvas>
             </div>
             <div id="chart-expense-legend" class="mt-3 space-y-1 max-h-48 overflow-y-auto pr-1"></div>
@@ -602,12 +640,12 @@
           </div>
 
           <!-- Budget vs Realisasi -->
-          <div class="bg-white rounded-xl border border-slate-100 p-4">
+          <div class="bg-white rounded-xl border border-slate-100 p-4 min-w-0 overflow-hidden">
             <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
               <i data-lucide="target" class="w-4 h-4"></i>
               Budget vs Realisasi
             </h3>
-            <div id="chart-budget-wrap" class="relative" style="height:200px">
+            <div id="chart-budget-wrap" class="relative w-full max-w-full overflow-hidden" style="height:200px">
               <canvas id="chart-budget-usage"></canvas>
             </div>
             <div id="chart-budget-empty" class="hidden py-8 text-center">
@@ -616,12 +654,12 @@
           </div>
 
           <!-- Bar Chart -->
-          <div class="bg-white rounded-xl border border-slate-100 p-4">
+          <div class="bg-white rounded-xl border border-slate-100 p-4 min-w-0 overflow-hidden">
             <h3 class="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">
               <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
               Pemasukan vs Pengeluaran (6 Bulan Terakhir)
             </h3>
-            <div class="relative h-[230px] sm:h-[300px]">
+            <div class="relative h-[230px] sm:h-[300px] w-full max-w-full overflow-hidden">
               <canvas id="chart-income-expense"></canvas>
             </div>
             <div id="chart-bar-empty" class="hidden py-8 text-center">
@@ -846,31 +884,31 @@
   <!-- BOTTOM NAVIGATION BAR (Mobile only)           -->
   <!-- ============================================= -->
   <nav id="bottom-nav" class="bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200">
-    <div class="flex items-center justify-around px-2 py-1">
-      <button data-nav="dashboard" class="nav-item active flex flex-col items-center gap-0.5 py-2 px-3 relative">
-        <div class="nav-indicator absolute top-0 left-1/2-translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+    <div class="flex items-center justify-around px-1 sm:px-2 py-1">
+      <button data-nav="dashboard" class="nav-item active flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-3 relative min-w-0">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
         <i data-lucide="layout-dashboard" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
-        <span class="nav-label text-[10px] text-slate-400 transition-colors">Dashboard</span>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors truncate">Dashboard</span>
       </button>
-      <button data-nav="transaksi" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
-        <div class="nav-indicator absolute top-0 left-1/2-translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+      <button data-nav="transaksi" class="nav-item flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-3 relative min-w-0">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
         <i data-lucide="receipt-text" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
-        <span class="nav-label text-[10px] text-slate-400 transition-colors">Transaksi</span>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors truncate">Transaksi</span>
       </button>
-      <button data-nav="budget" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
-        <div class="nav-indicator absolute top-0 left-1/2-translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+      <button data-nav="budget" class="nav-item flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-3 relative min-w-0">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
         <i data-lucide="target" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
-        <span class="nav-label text-[10px] text-slate-400 transition-colors">Budget</span>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors truncate">Budget</span>
       </button>
-      <button data-nav="laporan" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
-        <div class="nav-indicator absolute top-0 left-1/2-translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+      <button data-nav="laporan" class="nav-item flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-3 relative min-w-0">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
         <i data-lucide="bar-chart-3" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
-        <span class="nav-label text-[10px] text-slate-400 transition-colors">Laporan</span>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors truncate">Laporan</span>
       </button>
-      <button data-nav="pengaturan" class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 relative">
-        <div class="nav-indicator absolute top-0 left-1/2-translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
+      <button data-nav="pengaturan" class="nav-item flex flex-col items-center gap-0.5 py-1.5 px-2 sm:px-3 relative min-w-0">
+        <div class="nav-indicator absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-600 opacity-0 transform scale-x-0 transition-all"></div>
         <i data-lucide="settings" class="nav-icon w-5 h-5 text-slate-400 transition-colors"></i>
-        <span class="nav-label text-[10px] text-slate-400 transition-colors">Pengaturan</span>
+        <span class="nav-label text-[10px] text-slate-400 transition-colors truncate">Pengaturan</span>
       </button>
     </div>
   </nav>

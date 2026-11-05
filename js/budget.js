@@ -72,9 +72,9 @@ function tone(pct) {
 const grad = (t) => `linear-gradient(90deg,${t.c1},${t.c2})`;
 
 function tile(fa, color, label, val) {
-  return `<div class="rounded-xl bg-slate-50 p-2.5 text-center">
-        <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1"><i class="fa-solid ${fa}" style="color:${color}"></i>${label}</div>
-        <p class="text-xs font-bold text-slate-800 mt-0.5 break-words">${val}</p></div>`;
+  return `<div class="rounded-xl bg-slate-50 p-1.5 sm:p-2.5 text-center min-w-0 overflow-hidden">
+        <div class="text-[9px] sm:text-[10px] text-slate-400 flex items-center justify-center gap-1 truncate"><i class="fa-solid ${fa} shrink-0" style="color:${color}"></i><span class="truncate">${label}</span></div>
+        <p class="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5 truncate" title="${val}">${val}</p></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,13 +99,13 @@ function renderBudgetSummary(items) {
   const allocPct = income > 0 ? Math.round((alloc / income) * 100) : null;
   const free = income - alloc;
   const cell = (fa, color, label, val, cls, sub) => `
-        <div class="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm flex items-start gap-2.5">
-            ${faBadge(fa, color, 32)}
-            <div class="min-w-0"><p class="text-[10px] text-slate-400 uppercase tracking-wider">${label}</p>
-            <p class="text-sm font-bold ${cls} break-words">${val}</p>${sub ? `<p class="text-[10px] text-slate-400">${sub}</p>` : ""}</div>
+        <div class="bg-white rounded-2xl border border-slate-100 p-2.5 sm:p-3 shadow-sm flex items-start gap-2 sm:gap-2.5 min-w-0 overflow-hidden">
+            <div class="shrink-0">${faBadge(fa, color, 28)}</div>
+            <div class="min-w-0 flex-1"><p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider truncate">${label}</p>
+            <p class="text-xs sm:text-sm font-bold ${cls} truncate" title="${val}">${val}</p>${sub ? `<p class="text-[9px] sm:text-[10px] text-slate-400 truncate">${sub}</p>` : ""}</div>
         </div>`;
   el.innerHTML = `
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
             ${cell("fa-arrow-trend-up", "#10B981", "Pemasukan", formatCurrency(income), "text-emerald-600", "Bulan ini")}
             ${cell("fa-arrow-trend-down", "#F43F5E", "Pengeluaran", formatCurrency(expense), "text-rose-600", spentPct === null ? "Bulan ini" : `${spentPct}% dari pemasukan`)}
             ${cell("fa-bullseye", "#6366F1", "Total budget", formatCurrency(alloc), "text-indigo-600", allocPct === null ? "Bulanan" : `${allocPct}% dari pemasukan`)}
@@ -139,7 +139,7 @@ export function renderBudgets() {
         t = tone(b.percentage),
         P = PERIOD[b.period_type];
       const scope = b.category_id
-        ? `<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">${iconBadge(b.category_icon, { size: 16 })}${esc(b.category_name || "Kategori")}</span>`
+        ? `<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 truncate max-w-[140px]">${iconBadge(b.category_icon, { size: 16 })}<span class="truncate">${esc(b.category_name || "Kategori")}</span></span>`
         : chip("Semua pengeluaran", "fa-receipt", "#64748B");
       const t3 =
         b.period_type === "daily"
@@ -156,13 +156,13 @@ export function renderBudgets() {
               formatCurrency(b.dailySafe),
             );
       return `
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${b.is_active ? "" : "opacity-60"}">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-w-0 ${b.is_active ? "" : "opacity-60"}">
             <!--<div class="h-1.5" style="background:${grad(t)}"></div>-->
-            <div class="p-4 space-y-3">
-                <div class="flex items-start gap-3">
-                    ${iconBadge(resolveBudgetIcon(b), { size: 40 })}
+            <div class="p-3.5 sm:p-4 space-y-3 min-w-0">
+                <div class="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                    <div class="shrink-0">${iconBadge(resolveBudgetIcon(b), { size: 38 })}</div>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-bold text-slate-800 truncate">${esc(b.name)}</p>
+                        <p class="text-sm font-bold text-slate-800 truncate" title="${esc(b.name)}">${esc(b.name)}</p>
                         <div class="flex flex-wrap items-center gap-1.5 mt-1">${chip(P.label, P.fa, P.c)}${scope}</div>
                     </div>
                     <div class="flex shrink-0">
@@ -171,20 +171,20 @@ export function renderBudgets() {
                     </div>
                 </div>
                 <div>
-                    <div class="flex items-end justify-between mb-1">
-                        <span class="text-xl font-extrabold leading-none" style="color:${t.c1}">${pct}%</span>
-                        <span class="text-[11px] text-slate-400">${formatCurrency(b.spent)} / ${formatCurrency(b.amount_limit)}</span>
+                    <div class="flex items-end justify-between gap-2 mb-1 min-w-0">
+                        <span class="text-lg sm:text-xl font-extrabold leading-none shrink-0" style="color:${t.c1}">${pct}%</span>
+                        <span class="text-[10px] sm:text-[11px] text-slate-400 truncate text-right">${formatCurrency(b.spent)} / ${formatCurrency(b.amount_limit)}</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden"><div class="h-3 rounded-full progress-bar-fill" style="width:${Math.min(pct, 100)}%;background:${grad(t)}"></div></div>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-3 gap-1.5 sm:gap-2 min-w-0">
                     ${tile("fa-wallet", "#F43F5E", "Terpakai", formatCurrency(b.spent))}
                     ${b.remaining >= 0 ? tile("fa-piggy-bank", "#10B981", "Sisa", formatCurrency(b.remaining)) : tile("fa-fire", "#F43F5E", "Lebih", formatCurrency(-b.remaining))}
                     ${t3}
                 </div>
-                <div class="flex items-center justify-between gap-2">
-                    ${b.is_active ? chip(t.label, t.fa, t.c1) : chip("Nonaktif", "fa-pause", "#64748B")}
-                    <span class="text-[10px] text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${b.period_type === "daily" ? formatDate(b.start) : `${formatDate(b.start)} – ${formatDate(b.end)}`}</span>
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="shrink-0">${b.is_active ? chip(t.label, t.fa, t.c1) : chip("Nonaktif", "fa-pause", "#64748B")}</div>
+                    <span class="text-[10px] text-slate-400 ml-auto shrink-0"><i class="fa-regular fa-calendar mr-1"></i>${b.period_type === "daily" ? formatDate(b.start) : `${formatDate(b.start)} – ${formatDate(b.end)}`}</span>
                 </div>
             </div>
         </div>`;
@@ -218,16 +218,17 @@ export function renderBudgetAlerts(container) {
       const pct = Math.round(b.percentage),
         t = tone(b.percentage);
       return `
-        <div class="bg-white rounded-xl p-3.5 border border-slate-100 space-y-2">
-            <div class="flex items-center gap-2.5">
-                ${iconBadge(resolveBudgetIcon(b), { size: 32 })}
-                <div class="min-w-0 flex-1"><p class="text-xs font-bold text-slate-800 truncate">${esc(b.name)}</p>
-                <p class="text-[10px] text-slate-400">${PERIOD[b.period_type].label}</p></div>
-                ${chip(`${pct}% ${b.percentage >= 100 ? "Melebihi" : "Hampir habis"}`, t.fa, t.c1)}
+        <div class="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-100 space-y-2 min-w-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="shrink-0">${iconBadge(resolveBudgetIcon(b), { size: 32 })}</div>
+                <div class="min-w-0 flex-1"><p class="text-xs font-bold text-slate-800 truncate" title="${esc(b.name)}">${esc(b.name)}</p>
+                <p class="text-[10px] text-slate-400 truncate">${PERIOD[b.period_type].label}</p></div>
+                <div class="shrink-0">${chip(`${pct}% ${b.percentage >= 100 ? "Melebihi" : "Hampir habis"}`, t.fa, t.c1)}</div>
             </div>
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div class="h-2 rounded-full" style="width:${Math.min(pct, 100)}%;background:${grad(t)}"></div></div>
-            <div class="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Terpakai: ${formatCurrency(b.spent)}</span><span>Batas: ${formatCurrency(b.amount_limit)}</span>
+            <div class="flex items-center justify-between gap-1 flex-wrap text-[11px] text-slate-500">
+                <span class="truncate">Terpakai: <strong>${formatCurrency(b.spent)}</strong></span>
+                <span class="truncate ml-auto">Batas: <strong>${formatCurrency(b.amount_limit)}</strong></span>
             </div>
         </div>`;
     })

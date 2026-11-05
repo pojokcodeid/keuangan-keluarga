@@ -67,11 +67,11 @@ function renderPieLegend(labels, amounts, colors, total, icons = []) {
     if (!el) return;
     el.innerHTML = labels.map((l, i) => {
         const pct = total > 0 ? ((amounts[i] / total) * 100).toFixed(1) : '0.0';
-        return `<div class="flex items-center gap-2 text-xs">
-            ${iconBadge(icons[i] || 'tag', { size: 22 })}
-            <span class="flex-1 min-w-0 truncate text-slate-600">${esc(l)}</span>
+        return `<div class="flex items-center gap-2 text-xs min-w-0 py-0.5">
+            <div class="shrink-0">${iconBadge(icons[i] || 'tag', { size: 22 })}</div>
+            <span class="flex-1 min-w-0 truncate text-slate-600" title="${esc(l)}">${esc(l)}</span>
             <span class="text-slate-400 shrink-0">${pct}%</span>
-            <span class="font-semibold text-slate-700 shrink-0 w-24 text-right">${formatCurrency(amounts[i])}</span>
+            <span class="font-semibold text-slate-700 shrink-0 text-right whitespace-nowrap ml-1">${formatCurrency(amounts[i])}</span>
         </div>`;
     }).join('');
 }

@@ -306,17 +306,17 @@ function renderDashboardAccountBalances() {
         const typeLabel = ACCOUNT_TYPE_LABELS[acc.type] || 'Akun';
 
         return `
-            <div class="flex items-center justify-between gap-3 py-2.5 ${i > 0 ? 'border-t border-white/15' : ''}">
-                <div class="flex items-center gap-2.5 min-w-0">
-                    <span class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                        <i data-lucide="${iconName}" class="w-4 h-4"></i>
+            <div class="flex items-center justify-between gap-2.5 py-2 sm:py-2.5 ${i > 0 ? 'border-t border-white/15' : ''}">
+                <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                    <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                        <i data-lucide="${iconName}" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
                     </span>
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold truncate">${esc(acc.name)}</p>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs sm:text-sm font-bold truncate" title="${esc(acc.name)}">${esc(acc.name)}</p>
                         <p class="text-[10px] text-indigo-200 truncate">${esc(typeLabel)}</p>
                     </div>
                 </div>
-                <p class="text-sm font-bold whitespace-nowrap">${formatCurrency(balance)}</p>
+                <p class="text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 ml-2">${formatCurrency(balance)}</p>
             </div>
         `;
     }).join('');
@@ -370,6 +370,8 @@ function populateTransactionFilterDropdowns() {
     }
 }
 
+let txVisibleGroups = 15;
+
 export function renderTransactions() {
     const listEl = $('#transaction-list');
     if (!listEl) return;
@@ -413,8 +415,13 @@ export function renderTransactions() {
         groups[dateKey].push(tx);
     });
 
+    const dateKeys = Object.keys(groups);
+    const visibleDateKeys = dateKeys.slice(0, txVisibleGroups);
+    const hasMore = dateKeys.length > txVisibleGroups;
+
     let html = '';
-    for (const [dateKey, txs] of Object.entries(groups)) {
+    for (const dateKey of visibleDateKeys) {
+        const txs = groups[dateKey];
         const groupLabel = formatDateGroup(dateKey);
 
         // Daily total calculation
@@ -426,13 +433,13 @@ export function renderTransactions() {
         });
 
         html += `
-            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm min-w-0">
                 <!-- Group Header -->
-                <div class="bg-slate-50/80 px-4 py-2.5 border-b border-slate-100 flex items-center justify-between text-xs">
-                    <span class="font-bold text-slate-700">${groupLabel}</span>
-                    <div class="flex items-center gap-3 text-[11px] font-semibold">
-                        ${dailyIncome > 0 ? `<span class="text-emerald-600">+${formatCurrency(dailyIncome)}</span>` : ''}
-                        ${dailyExpense > 0 ? `<span class="text-rose-600">-${formatCurrency(dailyExpense)}</span>` : ''}
+                <div class="bg-slate-50/80 px-3.5 sm:px-4 py-2 sm:py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-1 text-xs">
+                    <span class="font-bold text-slate-700 truncate min-w-0 max-w-full">${groupLabel}</span>
+                    <div class="flex items-center gap-2 sm:gap-3 text-[11px] font-semibold shrink-0 ml-auto">
+                        ${dailyIncome > 0 ? `<span class="text-emerald-600 whitespace-nowrap">+${formatCurrency(dailyIncome)}</span>` : ''}
+                        ${dailyExpense > 0 ? `<span class="text-rose-600 whitespace-nowrap">-${formatCurrency(dailyExpense)}</span>` : ''}
                     </div>
                 </div>
                 <!-- Transactions in this group -->
@@ -443,7 +450,28 @@ export function renderTransactions() {
         `;
     }
 
+    if (hasMore) {
+        const remaining = transactions.length - visibleDateKeys.reduce((acc, k) => acc + groups[k].length, 0);
+        html += `
+            <div class="text-center pt-2 pb-6">
+                <button id="btn-load-more-tx" class="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-indigo-600 shadow-sm transition-colors active:scale-95 flex items-center justify-center gap-2 mx-auto">
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    <span>Tampilkan Lebih Banyak (${remaining} transaksi lagi)</span>
+                </button>
+            </div>
+        `;
+    }
+
     listEl.innerHTML = html;
+
+    const btnMore = $('#btn-load-more-tx');
+    if (btnMore) {
+        btnMore.addEventListener('click', () => {
+            txVisibleGroups += 15;
+            renderTransactions();
+        });
+    }
+
     refreshIcons();
 }
 
@@ -457,23 +485,19 @@ function renderTransactionRowHtml(tx, showActions = true) {
     let amountColor = 'text-blue-600';
     let amountPrefix = '';
     let typeBadge = '';
-    let iconEmoji = '💸';
 
     if (isIncome) {
         amountColor = 'text-emerald-600';
         amountPrefix = '+';
-        iconEmoji = getCategoryEmoji(tx.category_icon || 'briefcase');
-        typeBadge = `<span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Pemasukan</span>`;
+        typeBadge = `<span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium shrink-0">Pemasukan</span>`;
     } else if (isExpense) {
         amountColor = 'text-rose-600';
         amountPrefix = '-';
-        iconEmoji = getCategoryEmoji(tx.category_icon || 'shopping-cart');
-        typeBadge = `<span class="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-medium">Pengeluaran</span>`;
+        typeBadge = `<span class="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded font-medium shrink-0">Pengeluaran</span>`;
     } else if (isTransfer) {
         amountColor = 'text-blue-600';
         amountPrefix = '';
-        iconEmoji = '🔄';
-        typeBadge = `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">Transfer</span>`;
+        typeBadge = `<span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium shrink-0">Transfer</span>`;
     }
 
     const txBadge = isTransfer
@@ -489,24 +513,26 @@ function renderTransactionRowHtml(tx, showActions = true) {
         : `${tx.account_name || ''}`;
 
     return `
-        <div class="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+        <div class="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-slate-50 transition-colors group cursor-pointer"
              onclick="window.appUI.openTransactionModal(${tx.id})">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-                ${txBadge}
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div class="shrink-0">
+                    ${txBadge}
+                </div>
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                        <p class="text-sm font-semibold text-slate-800 truncate">${title}</p>
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <p class="text-xs sm:text-sm font-semibold text-slate-800 truncate flex-1 min-w-0" title="${esc(title)}">${esc(title)}</p>
                         ${typeBadge}
                     </div>
-                    <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5 truncate">
-                        <span>${subInfo}</span>
-                        ${tx.note ? `<span class="truncate">· ${tx.note}</span>` : ''}
+                    <div class="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-400 mt-0.5 min-w-0">
+                        <span class="truncate shrink-0 max-w-[110px] sm:max-w-[180px]">${esc(subInfo)}</span>
+                        ${tx.note ? `<span class="truncate min-w-0 flex-1" title="${esc(tx.note)}">· ${esc(tx.note)}</span>` : ''}
                     </div>
                 </div>
             </div>
-            <div class="text-right shrink-0 ml-3">
-                <p class="text-sm font-bold ${amountColor}">${amountPrefix}${formatCurrency(tx.amount)}</p>
-                <p class="text-[11px] text-slate-400">${formatDate(tx.transaction_date)}</p>
+            <div class="text-right shrink-0 ml-2">
+                <p class="text-xs sm:text-sm font-bold ${amountColor} whitespace-nowrap">${amountPrefix}${formatCurrency(tx.amount)}</p>
+                <p class="text-[10px] sm:text-[11px] text-slate-400 whitespace-nowrap">${formatDate(tx.transaction_date)}</p>
             </div>
         </div>
     `;
@@ -907,17 +933,17 @@ export function renderBudgetBars(month, year) {
         }
 
         return `
-            <div class="p-4 space-y-2">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm font-semibold text-slate-700">${item.category_name}</span>
-                    <span class="text-xs font-bold ${textColor}">${pct}%</span>
+            <div class="p-3.5 sm:p-4 space-y-2 min-w-0">
+                <div class="flex items-center justify-between gap-2 min-w-0">
+                    <span class="text-sm font-semibold text-slate-700 truncate min-w-0 flex-1">${esc(item.category_name)}</span>
+                    <span class="text-xs font-bold ${textColor} shrink-0">${pct}%</span>
                 </div>
                 <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                     <div class="${barColor} h-2.5 rounded-full progress-bar-fill" style="width: ${Math.min(pct, 100)}%"></div>
                 </div>
-                <div class="flex items-center justify-between text-xs text-slate-400">
-                    <span>Terpakai: <strong class="text-slate-600">${formatCurrency(item.spent)}</strong></span>
-                    <span>Batas: <strong class="text-slate-600">${formatCurrency(item.budget_limit)}</strong></span>
+                <div class="flex items-center justify-between gap-1 flex-wrap text-xs text-slate-400">
+                    <span class="truncate">Terpakai: <strong class="text-slate-600">${formatCurrency(item.spent)}</strong></span>
+                    <span class="truncate ml-auto">Batas: <strong class="text-slate-600">${formatCurrency(item.budget_limit)}</strong></span>
                 </div>
             </div>
         `;
@@ -1238,15 +1264,15 @@ export function renderAccounts() {
         const iconEmoji = iconBadge(acc.type === 'bank' ? 'fa-solid fa-building-columns|#3B82F6' : (acc.type === 'e-wallet' ? 'fa-solid fa-mobile-screen-button|#A855F7' : 'fa-solid fa-wallet|#10B981'), { size: 40 });
 
         return `
-            <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div class="flex items-center gap-3">
-                    ${iconEmoji}
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">${acc.name}</p>
-                        <p class="text-xs text-slate-400">Saldo: <strong class="text-indigo-600 font-semibold">${formatCurrency(balance)}</strong></p>
+            <div class="p-3.5 sm:p-4 flex items-center justify-between gap-2.5 hover:bg-slate-50 transition-colors">
+                <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                    <div class="shrink-0">${iconEmoji}</div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-bold text-slate-800 truncate" title="${esc(acc.name)}">${esc(acc.name)}</p>
+                        <p class="text-xs text-slate-400 truncate">Saldo: <strong class="text-indigo-600 font-semibold">${formatCurrency(balance)}</strong></p>
                     </div>
                 </div>
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1 shrink-0 ml-1">
                     <button class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
                             onclick="window.appUI.openAccountModal(${acc.id})" title="Edit Akun">
                         <i data-lucide="edit-2" class="w-4 h-4"></i>
@@ -1405,15 +1431,15 @@ function renderCategoryRowHtml(cat) {
         : `<span class="text-xs text-slate-300">Tanpa batas anggaran</span>`;
 
     return `
-        <div class="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-            <div class="flex items-center gap-3">
-                ${iconBadge(cat.icon, { size: 36 })}
-                <div>
-                    <p class="text-sm font-semibold text-slate-800">${cat.name}</p>
-                    ${budgetInfo}
+        <div class="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 hover:bg-slate-50 transition-colors">
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div class="shrink-0">${iconBadge(cat.icon, { size: 36 })}</div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-800 truncate" title="${esc(cat.name)}">${esc(cat.name)}</p>
+                    <div class="text-xs truncate">${budgetInfo}</div>
                 </div>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 shrink-0 ml-1">
                 <button class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
                         onclick="window.appUI.openCategoryModal(${cat.id})" title="Edit Kategori">
                     <i data-lucide="edit-2" class="w-4 h-4"></i>
